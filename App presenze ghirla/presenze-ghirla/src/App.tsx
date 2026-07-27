@@ -23,7 +23,7 @@ import {
   getStoredGoogleToken, 
   requestGoogleCalendarAccess, 
   logoutGoogleCalendar, 
-  syncPresenceToGoogleCalendar 
+  syncDailySummaryToGoogleCalendar 
 } from './utils/googleCalendarApi';
 
 export const App: React.FC = () => {
@@ -141,15 +141,12 @@ export const App: React.FC = () => {
     setPresences(updated);
     await batchSavePresenceEntriesToCloud(updated);
 
-    // Se Google Calendar è connesso, effettua la sincronizzazione automatica degli eventi
+    // Se Google Calendar è connesso, effettua la sincronizzazione del riepilogo giornaliero unico
     if (getStoredGoogleToken()) {
-      Object.values(updated).forEach((entry) => {
-        const hasPresence = entry.lunch || entry.dinner || entry.overnight;
-        const person = ALL_PEOPLE.find(p => p.id === entry.personId);
-        const personName = person ? person.name : entry.personId;
-        const details = `Presenza Ghirla per ${personName} (${entry.lunch ? 'Pranzo ' : ''}${entry.dinner ? 'Cena ' : ''}${entry.overnight ? 'Pernottamento' : ''})`;
-
-        syncPresenceToGoogleCalendar(entry.date, personName, hasPresence, details);
+      // Estrai le date uniche interessate dalle modifiche
+      const affectedDates = Array.from(new Set(Object.values(updated).map(entry => entry.date)));
+      affectedDates.forEach((dateStr) => {
+        syncDailySummaryToGoogleCalendar(dateStr, updated, ALL_PEOPLE);
       });
     }
   };

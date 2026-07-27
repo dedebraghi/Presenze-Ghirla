@@ -62,25 +62,58 @@ export function requestGoogleCalendarAccess(onSuccess: (token: string) => void, 
   tokenClient.requestAccessToken();
 }
 
-// Crea o rimuove eventi sul Google Calendar dell'utente connesso
-export async function syncPresenceToGoogleCalendar(
+interface PresenceEntryLike {
+  date: string;
+  personId: string;
+  lunch: boolean;
+  dinner: boolean;
+  overnight: boolean;
+}
+
+interface PersonLike {
+  id: string;
+  name: string;
+}
+
+// Sincronizza un unico evento riassuntivo giornaliero su Google Calendar per la data specificata
+export async function syncDailySummaryToGoogleCalendar(
   dateStr: string,
-  personName: string,
-  hasPresence: boolean,
-  details: string
+  allPresences: Record<string, PresenceEntryLike>,
+  allPeople: PersonLike[]
 ) {
   const tokenObj = getStoredGoogleToken();
   if (!tokenObj) return; // Utente non ha connesso Google Calendar
 
-  const eventSummary = `Presenza a Ghirla - ${personName}`;
+  // Raccogli chi è presente a pranzo, cena, notte per questa data
+  const lunchPeople: string[] = [];
+  const dinnerPeople: string[] = [];
+  const overnightPeople: string[] = [];
+
+  allPeople.forEach(person => {
+    const key = `${dateStr}_${person.id}`;
+    const entry = allPresences[key];
+    
+    // Gestione presenze di default (Stefano ed Elena sono sempre presenti salvo diversa indicazione espressa)
+    const isDefaultAlwaysPresent = person.id === 'stefano' || person.id === 'elena';
+    const lunch = entry ? entry.lunch : isDefaultAlwaysPresent;
+    const dinner = entry ? entry.dinner : isDefaultAlwaysPresent;
+    const overnight = entry ? entry.overnight : isDefaultAlwaysPresent;
+
+    if (lunch) lunchPeople.push(person.name);
+    if (dinner) dinnerPeople.push(person.name);
+    if (overnight) overnightPeople.push(person.name);
+  });
+
+  const totalPresencesCount = lunchPeople.length + dinnerPeople.length + overnightPeople.length;
+  const eventSearchQuery = 'Presenze Ghirla';
   const startDateTime = `${dateStr}T09:00:00`;
   const endDateTime = `${dateStr}T22:00:00`;
   const timeZone = 'Europe/Rome';
 
   try {
-    // 1. Cerca se esiste già un evento per quel giorno e quella persona
-    const listUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events?q=${encodeURIComponent(eventSummary)}&timeMin=${dateStr}T00:00:00Z&timeMax=${dateStr}T23:59:59Z`;
-    
+    // 1. Cerca se esiste già l'evento riassuntivo per questa data sul Google Calendar dell'utente
+    const listUrl = `https://www.googleapis.com/calendar/v3/calendars/primary/events?q=${encodeURIComponent(eventSearchQuery)}&timeMin=${dateStr}T00:00:00Z&timeMax=${dateStr}T23:59:59Z`;
+
     const searchRes = await fetch(listUrl, {
       headers: {
         Authorization: `Bearer ${tokenObj.access_token}`,
@@ -95,20 +128,36 @@ export async function syncPresenceToGoogleCalendar(
     }
 
     const searchData = await searchRes.json();
-    const existingEvent = searchData.items && searchData.items.length > 0 ? searchData.items[0] : null;
+    // Trova l'evento che inizia con 'Presenze Ghirla'
+    const existingEvent = searchData.items && searchData.items.length > 0
+      ? searchData.items.find((item: any) => item.summary && item.summary.includes('Presenze Ghirla'))
+      : null;
 
-    if (hasPresence) {
-      // Se c'è presenza: crea o aggiorna l'evento
+    if (totalPresencesCount > 0) {
+      // Formatta data leggibile per la descrizione (es. 28/07/2026)
+      const parts = dateStr.split('-');
+      const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
+
+      const eventSummary = `Presenze Ghirla: 🍝 ${lunchPeople.length} | 🍷 ${dinnerPeople.length} | 🛏️ ${overnightPeople.length}`;
+      
+      const descriptionLines = [
+        `🏠 RIEPILOGO PRESENZE GHIRLA - ${formattedDate}`,
+        '',
+        `🍝 PRANZO (${lunchPeople.length}): ${lunchPeople.length > 0 ? lunchPeople.join(', ') : 'Nessuno'}`,
+        `🍷 CENA (${dinnerPeople.length}): ${dinnerPeople.length > 0 ? dinnerPeople.join(', ') : 'Nessuno'}`,
+        `🛏️ NOTTE (${overnightPeople.length}): ${overnightPeople.length > 0 ? overnightPeople.join(', ') : 'Nessuno'}`
+      ];
+
       const eventBody = {
         summary: eventSummary,
-        description: details,
+        description: descriptionLines.join('\n'),
         location: 'Casa Ghirla, Valganna',
         start: { dateTime: startDateTime, timeZone },
         end: { dateTime: endDateTime, timeZone },
       };
 
       if (existingEvent) {
-        // Aggiorna evento esistente
+        // Aggiorna l'evento riassuntivo esistente
         await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${existingEvent.id}`, {
           method: 'PUT',
           headers: {
@@ -118,7 +167,7 @@ export async function syncPresenceToGoogleCalendar(
           body: JSON.stringify(eventBody),
         });
       } else {
-        // Crea nuovo evento
+        // Crea nuovo evento riassuntivo
         await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events`, {
           method: 'POST',
           headers: {
@@ -129,7 +178,7 @@ export async function syncPresenceToGoogleCalendar(
         });
       }
     } else if (existingEvent) {
-      // Se la presenza è stata azzerata / disdetta e l'evento esisteva, cancella l'evento!
+      // Se le presenze per questo giorno sono state azzerate, elimina l'evento riassuntivo
       await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${existingEvent.id}`, {
         method: 'DELETE',
         headers: {
@@ -138,6 +187,17 @@ export async function syncPresenceToGoogleCalendar(
       });
     }
   } catch (err) {
-    console.error('Errore durante la sincronizzazione con Google Calendar API:', err);
+    console.error('Errore durante la sincronizzazione riassuntiva con Google Calendar API:', err);
   }
 }
+
+// Mantenuto per retrocompatibilità se necessario
+export async function syncPresenceToGoogleCalendar(
+  _dateStr?: string,
+  _personName?: string,
+  _hasPresence?: boolean,
+  _details?: string
+) {
+  // Deprecato in favore di syncDailySummaryToGoogleCalendar
+}
+
