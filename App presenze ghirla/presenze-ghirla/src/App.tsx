@@ -9,7 +9,8 @@ import {
   Utensils,
   ChevronLeft,
   ChevronRight,
-  Home
+  Home,
+  Download
 } from 'lucide-react';
 
 import { 
@@ -33,6 +34,51 @@ export const App: React.FC = () => {
   const [isGoogleConnected, setIsGoogleConnected] = useState<boolean>(() => {
     return !!getStoredGoogleToken();
   });
+
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState<boolean>(() => {
+    return window.matchMedia('(display-mode: standalone)').matches;
+  });
+
+  React.useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setIsAppInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setDeferredPrompt(null);
+      }
+    } else if (isAppInstalled) {
+      alert("L'applicazione è già installata sul tuo dispositivo.");
+    } else {
+      // Indicazioni manuali se il browser non supporta l'evento automatico o è iOS Safari / Chrome già pronto
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      if (isIOS) {
+        alert("Per installare l'app su iOS (iPhone/iPad):\n1. Tocca il tasto Condividi (icona col quadrato e freccia in alto)\n2. Seleziona 'Aggiungi alla schermata Home'");
+      } else {
+        alert("Per installare l'app dal browser:\n- Su Chrome/Edge/Android: tocca il menu a tre pallini in alto a destra e seleziona 'Installa app' o 'Aggiungi a schermata Home'.");
+      }
+    }
+  };
 
   // Funzione helper per ottenere o generare la presenza considerando che Stefano ed Elena sono di default presenti (pranzo, cena, notte)
   const getEntryWithDefault = (dateStr: string, personId: string): PresenceEntry => {
@@ -215,6 +261,28 @@ export const App: React.FC = () => {
               }}
             >
               <span>{isGoogleConnected ? '✅ Google Calendar Connesso' : '📅 Connetti Google Calendar'}</span>
+            </button>
+
+            <button
+              onClick={handleInstallClick}
+              title={isAppInstalled ? "App già installata" : "Installa App sul tuo dispositivo"}
+              style={{
+                backgroundColor: isAppInstalled ? '#475569' : '#0284c7',
+                color: '#ffffff',
+                border: 'none',
+                padding: '14px 18px',
+                borderRadius: '16px',
+                fontWeight: 700,
+                fontSize: '15px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
+              }}
+            >
+              <Download size={20} />
+              <span>{isAppInstalled ? '📱 App Installata' : '📱 Installa App'}</span>
             </button>
 
             <button
