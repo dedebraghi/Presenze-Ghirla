@@ -3,6 +3,7 @@ import type { PresenceEntry } from '../data/familyData';
 import { FAMILY_GROUPS } from '../data/familyData';
 import { Sun, Moon, Bed, Check, Plus } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { getLocalDateString } from '../utils/dateUtils';
 
 interface QuickAddModalProps {
   isOpen: boolean;
@@ -19,7 +20,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
 
@@ -55,7 +56,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     const end = new Date(endDate);
 
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = getLocalDateString(d);
       
       selectedPersonIds.forEach(pId => {
         const key = `${dateStr}_${pId}`;

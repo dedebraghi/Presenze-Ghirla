@@ -26,6 +26,8 @@ import {
   syncDailySummaryToGoogleCalendar 
 } from './utils/googleCalendarApi';
 
+import { getLocalDateString } from './utils/dateUtils';
+
 export const App: React.FC = () => {
   const [presences, setPresences] = useState<Record<string, PresenceEntry>>(() => {
     return getLocalPresences();
@@ -158,10 +160,11 @@ export const App: React.FC = () => {
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
 
   const today = new Date();
+  const todayStr = getLocalDateString(today);
   const next7Days = Array.from({ length: 7 }, (_, i: number) => {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    return d.toISOString().split('T')[0];
+    return getLocalDateString(d);
   });
 
   const year = currentMonthDate.getFullYear();
@@ -558,7 +561,7 @@ export const App: React.FC = () => {
 
                 const d = new Date(dateStr);
                 const dayNum = d.getDate();
-                const isTodayCell = dateStr === today.toISOString().split('T')[0];
+                const isTodayCell = dateStr === todayStr;
 
                 const dayEntries = ALL_PEOPLE
                   .filter((p: Person) => !activeFamilyFilter || p.familyId === activeFamilyFilter)
