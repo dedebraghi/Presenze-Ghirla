@@ -416,12 +416,13 @@ export const App: React.FC = () => {
         <section style={{
           backgroundColor: '#ffffff',
           borderRadius: '24px',
-          padding: '24px',
+          padding: '16px',
           boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
-          border: '1.5px solid #e2e8f0'
+          border: '1.5px solid #e2e8f0',
+          overflowX: 'auto'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#1e3a8a', textTransform: 'capitalize' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, color: '#1e3a8a', textTransform: 'capitalize' }}>
               📆 {currentMonthDate.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
             </h2>
 
@@ -429,132 +430,134 @@ export const App: React.FC = () => {
               <button
                 onClick={handlePrevMonth}
                 style={{
-                  padding: '10px 16px',
-                  borderRadius: '14px',
+                  padding: '8px 12px',
+                  borderRadius: '12px',
                   backgroundColor: '#f1f5f9',
                   color: '#1e293b',
                   fontWeight: 700,
-                  fontSize: '15px',
+                  fontSize: '14px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
                   cursor: 'pointer'
                 }}
               >
-                <ChevronLeft size={20} /> Mese Prec.
+                <ChevronLeft size={18} /> Prec.
               </button>
 
               <button
                 onClick={handleNextMonth}
                 style={{
-                  padding: '10px 16px',
-                  borderRadius: '14px',
+                  padding: '8px 12px',
+                  borderRadius: '12px',
                   backgroundColor: '#f1f5f9',
                   color: '#1e293b',
                   fontWeight: 700,
-                  fontSize: '15px',
+                  fontSize: '14px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
                   cursor: 'pointer'
                 }}
               >
-                Mese Succ. <ChevronRight size={20} />
+                Succ. <ChevronRight size={18} />
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '8px', textAlign: 'center' }}>
-            {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((d: string, i: number) => (
-              <div key={d} style={{ fontWeight: 800, fontSize: '15px', color: i >= 5 ? '#ea580c' : '#64748b', padding: '8px 0' }}>
-                {d}
-              </div>
-            ))}
-          </div>
+          <div style={{ width: '100%' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '6px', textAlign: 'center' }}>
+              {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((d: string, i: number) => (
+                <div key={d} style={{ fontWeight: 800, fontSize: '13px', color: i >= 5 ? '#ea580c' : '#64748b', padding: '4px 0' }}>
+                  {d}
+                </div>
+              ))}
+            </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
-            {monthDaysArray.map((dateStr: string | null, idx: number) => {
-              if (!dateStr) {
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+              {monthDaysArray.map((dateStr: string | null, idx: number) => {
+                if (!dateStr) {
+                  return (
+                    <div
+                      key={`empty_${idx}`}
+                      style={{
+                        aspectRatio: '1',
+                        minHeight: '40px',
+                        backgroundColor: '#f8fafc',
+                        borderRadius: '10px',
+                        opacity: 0.4
+                      }}
+                    />
+                  );
+                }
+
+                const d = new Date(dateStr);
+                const dayNum = d.getDate();
+                const isTodayCell = dateStr === today.toISOString().split('T')[0];
+
+                const dayEntries = ALL_PEOPLE
+                  .filter((p: Person) => !activeFamilyFilter || p.familyId === activeFamilyFilter)
+                  .map((p: Person) => {
+                    const entry = getEntryWithDefault(dateStr, p.id);
+                    return { person: p, entry };
+                  })
+                  .filter((item: { person: Person; entry: PresenceEntry }) => item.entry && (item.entry.lunch || item.entry.dinner || item.entry.overnight));
+
                 return (
                   <div
-                    key={`empty_${idx}`}
+                    key={dateStr}
+                    onClick={() => setSelectedDayDetail(dateStr)}
                     style={{
                       aspectRatio: '1',
-                      minHeight: '60px',
-                      backgroundColor: '#f8fafc',
-                      borderRadius: '12px',
-                      opacity: 0.4
-                    }}
-                  />
-                );
-              }
-
-              const d = new Date(dateStr);
-              const dayNum = d.getDate();
-              const isTodayCell = dateStr === today.toISOString().split('T')[0];
-
-              const dayEntries = ALL_PEOPLE
-                .filter((p: Person) => !activeFamilyFilter || p.familyId === activeFamilyFilter)
-                .map((p: Person) => {
-                  const entry = getEntryWithDefault(dateStr, p.id);
-                  return { person: p, entry };
-                })
-                .filter((item: { person: Person; entry: PresenceEntry }) => item.entry && (item.entry.lunch || item.entry.dinner || item.entry.overnight));
-
-              return (
-                <div
-                  key={dateStr}
-                  onClick={() => setSelectedDayDetail(dateStr)}
-                  style={{
-                    aspectRatio: '1',
-                    minHeight: '60px',
-                    backgroundColor: isTodayCell ? '#eff6ff' : '#ffffff',
-                    border: isTodayCell ? '2px solid #2563eb' : '1px solid #cbd5e1',
-                    borderRadius: '14px',
-                    padding: '6px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  <span style={{
-                    fontWeight: 800,
-                    fontSize: '14px',
-                    color: isTodayCell ? '#2563eb' : '#1e293b',
-                    backgroundColor: isTodayCell ? '#dbeafe' : 'transparent',
-                    padding: '1px 6px',
-                    borderRadius: '6px'
-                  }}>
-                    {dayNum}
-                  </span>
-
-                  {dayEntries.length > 0 ? (
-                    <span style={{
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      backgroundColor: '#1e3a8a',
-                      color: '#ffffff',
-                      padding: '2px 6px',
+                      minHeight: '40px',
+                      backgroundColor: isTodayCell ? '#eff6ff' : '#ffffff',
+                      border: isTodayCell ? '2px solid #2563eb' : '1px solid #cbd5e1',
                       borderRadius: '10px',
-                      display: 'inline-flex',
+                      padding: '2px 1px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-around',
                       alignItems: 'center',
-                      gap: '2px',
-                      lineHeight: 1
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <span style={{
+                      fontWeight: 800,
+                      fontSize: '12px',
+                      color: isTodayCell ? '#2563eb' : '#1e293b',
+                      backgroundColor: isTodayCell ? '#dbeafe' : 'transparent',
+                      padding: '0px 4px',
+                      borderRadius: '4px',
+                      lineHeight: 1.1
                     }}>
-                      {dayEntries.length} 👤
+                      {dayNum}
                     </span>
-                  ) : (
-                    <div style={{ height: '16px' }} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
 
+                    {dayEntries.length > 0 ? (
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        backgroundColor: '#1e3a8a',
+                        color: '#ffffff',
+                        padding: '1px 4px',
+                        borderRadius: '6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '1px',
+                        lineHeight: 1
+                      }}>
+                        {dayEntries.length}👤
+                      </span>
+                    ) : (
+                      <div style={{ height: '12px' }} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </section>
 
       </main>
