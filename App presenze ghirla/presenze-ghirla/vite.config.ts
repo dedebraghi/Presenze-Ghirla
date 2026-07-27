@@ -111,9 +111,35 @@ const localDbPlugin = () => ({
   }
 });
 
+import { VitePWA } from 'vite-plugin-pwa'
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), localDbPlugin()],
+  plugins: [
+    react(), 
+    localDbPlugin(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.svg', 'icons.svg'],
+      manifest: {
+        name: 'Presenze Casa Ghirla',
+        short_name: 'Ghirla',
+        description: 'Gestione presenze e pasti per Casa Ghirla',
+        theme_color: '#1e3a8a',
+        background_color: '#1e3a8a',
+        display: 'standalone',
+        orientation: 'portrait',
+        icons: [
+          {
+            src: '/favicon.svg',
+            sizes: '192x192 512x512',
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
+          }
+        ]
+      }
+    })
+  ],
   server: {
     host: true,
   }
