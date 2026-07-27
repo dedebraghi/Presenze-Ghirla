@@ -267,27 +267,29 @@ export const App: React.FC = () => {
             </button>
             */}
 
-            <button
-              onClick={handleInstallClick}
-              title={isAppInstalled ? "App già installata" : "Installa App sul tuo dispositivo"}
-              style={{
-                backgroundColor: isAppInstalled ? '#475569' : '#0284c7',
-                color: '#ffffff',
-                border: 'none',
-                padding: '14px 18px',
-                borderRadius: '16px',
-                fontWeight: 700,
-                fontSize: '15px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
-              }}
-            >
-              <Download size={20} />
-              <span>{isAppInstalled ? '📱 App Installata' : '📱 Installa App'}</span>
-            </button>
+            {!isAppInstalled && (
+              <button
+                onClick={handleInstallClick}
+                title="Installa App sul tuo dispositivo"
+                style={{
+                  backgroundColor: '#0284c7',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '14px 18px',
+                  borderRadius: '16px',
+                  fontWeight: 700,
+                  fontSize: '15px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
+                }}
+              >
+                <Download size={20} />
+                <span>📱 Installa App</span>
+              </button>
+            )}
 
             <button
               onClick={() => setIsQuickAddOpen(true)}
