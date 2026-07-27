@@ -34,7 +34,23 @@ export const App: React.FC = () => {
     return !!getStoredGoogleToken();
   });
 
-  // Synchronize presences with Supabase Cloud DB and subscribe to Realtime updates
+  // Funzione helper per ottenere o generare la presenza considerando che Stefano ed Elena sono di default presenti (pranzo, cena, notte)
+  const getEntryWithDefault = (dateStr: string, personId: string): PresenceEntry => {
+    const key = `${dateStr}_${personId}`;
+    if (presences[key]) {
+      return presences[key];
+    }
+    const isDefaultAlwaysPresent = personId === 'stefano' || personId === 'elena';
+    return {
+      date: dateStr,
+      personId,
+      lunch: isDefaultAlwaysPresent,
+      dinner: isDefaultAlwaysPresent,
+      overnight: isDefaultAlwaysPresent
+    };
+  };
+
+  // Sottoscrizione ai cambiamenti in tempo reale (Realtime)
   React.useEffect(() => {
     const loadData = async () => {
       const data = await fetchPresencesFromCloud();
@@ -250,8 +266,8 @@ export const App: React.FC = () => {
               const dayName = d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
 
               const dayEntries = ALL_PEOPLE.map((p: Person) => {
-                const key = `${dateStr}_${p.id}`;
-                return { person: p, entry: presences[key] };
+                const entry = getEntryWithDefault(dateStr, p.id);
+                return { person: p, entry };
               }).filter((item: { person: Person; entry: PresenceEntry }) => item.entry && (item.entry.lunch || item.entry.dinner || item.entry.overnight));
 
               const countLunch = dayEntries.filter((i: { entry: PresenceEntry }) => i.entry.lunch).length;
@@ -456,10 +472,21 @@ export const App: React.FC = () => {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
             {monthDaysArray.map((dateStr: string | null, idx: number) => {
               if (!dateStr) {
-                return <div key={`empty_${idx}`} style={{ minHeight: '90px', backgroundColor: '#f8fafc', borderRadius: '14px', opacity: 0.4 }} />;
+                return (
+                  <div
+                    key={`empty_${idx}`}
+                    style={{
+                      aspectRatio: '1',
+                      minHeight: '60px',
+                      backgroundColor: '#f8fafc',
+                      borderRadius: '12px',
+                      opacity: 0.4
+                    }}
+                  />
+                );
               }
 
               const d = new Date(dateStr);
@@ -469,8 +496,8 @@ export const App: React.FC = () => {
               const dayEntries = ALL_PEOPLE
                 .filter((p: Person) => !activeFamilyFilter || p.familyId === activeFamilyFilter)
                 .map((p: Person) => {
-                  const key = `${dateStr}_${p.id}`;
-                  return { person: p, entry: presences[key] };
+                  const entry = getEntryWithDefault(dateStr, p.id);
+                  return { person: p, entry };
                 })
                 .filter((item: { person: Person; entry: PresenceEntry }) => item.entry && (item.entry.lunch || item.entry.dinner || item.entry.overnight));
 
@@ -479,66 +506,50 @@ export const App: React.FC = () => {
                   key={dateStr}
                   onClick={() => setSelectedDayDetail(dateStr)}
                   style={{
-                    minHeight: '100px',
+                    aspectRatio: '1',
+                    minHeight: '60px',
                     backgroundColor: isTodayCell ? '#eff6ff' : '#ffffff',
-                    border: isTodayCell ? '2.5px solid #2563eb' : '1px solid #cbd5e1',
-                    borderRadius: '16px',
-                    padding: '8px',
+                    border: isTodayCell ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                    borderRadius: '14px',
+                    padding: '6px',
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                    alignItems: 'center',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                    boxSizing: 'border-box'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{
+                    fontWeight: 800,
+                    fontSize: '14px',
+                    color: isTodayCell ? '#2563eb' : '#1e293b',
+                    backgroundColor: isTodayCell ? '#dbeafe' : 'transparent',
+                    padding: '1px 6px',
+                    borderRadius: '6px'
+                  }}>
+                    {dayNum}
+                  </span>
+
+                  {dayEntries.length > 0 ? (
                     <span style={{
+                      fontSize: '11px',
                       fontWeight: 800,
-                      fontSize: '16px',
-                      color: isTodayCell ? '#2563eb' : '#1e293b',
-                      backgroundColor: isTodayCell ? '#dbeafe' : 'transparent',
-                      padding: '2px 8px',
-                      borderRadius: '8px'
+                      backgroundColor: '#1e3a8a',
+                      color: '#ffffff',
+                      padding: '2px 6px',
+                      borderRadius: '10px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '2px',
+                      lineHeight: 1
                     }}>
-                      {dayNum}
+                      {dayEntries.length} 👤
                     </span>
-
-                    {dayEntries.length > 0 && (
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: 800,
-                        backgroundColor: '#1e3a8a',
-                        color: '#ffffff',
-                        padding: '2px 6px',
-                        borderRadius: '6px'
-                      }}>
-                        {dayEntries.length} 👤
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '3px', maxHeight: '55px', overflow: 'hidden' }}>
-                    {dayEntries.map(({ person }: { person: Person }) => (
-                      <div
-                        key={person.id}
-                        title={person.name}
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          backgroundColor: person.avatarBg || '#1e3a8a',
-                          color: '#ffffff',
-                          padding: '1px 5px',
-                          borderRadius: '4px',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          maxWidth: '100%'
-                        }}
-                      >
-                        {person.name}
-                      </div>
-                    ))}
-                  </div>
+                  ) : (
+                    <div style={{ height: '16px' }} />
+                  )}
                 </div>
               );
             })}

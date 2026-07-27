@@ -30,12 +30,13 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
 
   const dayPresences = ALL_PEOPLE.map(person => {
     const key = `${dateStr}_${person.id}`;
+    const isDefaultAlwaysPresent = person.id === 'stefano' || person.id === 'elena';
     const entry = presences[key] || {
       date: dateStr,
       personId: person.id,
-      lunch: false,
-      dinner: false,
-      overnight: false
+      lunch: isDefaultAlwaysPresent,
+      dinner: isDefaultAlwaysPresent,
+      overnight: isDefaultAlwaysPresent
     };
     return { person, entry };
   });
