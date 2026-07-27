@@ -36,6 +36,8 @@ export const App: React.FC = () => {
   const [isGoogleConnected, setIsGoogleConnected] = useState<boolean>(() => {
     return !!getStoredGoogleToken();
   });
+  // Riferimenti temporanei per mantenere il codice pronto per la futura integrazione permanente
+  void isGoogleConnected; void setIsGoogleConnected; void requestGoogleCalendarAccess; void logoutGoogleCalendar;
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isAppInstalled, setIsAppInstalled] = useState<boolean>(() => {
@@ -234,6 +236,7 @@ export const App: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+            {/* Pulsante Google Calendar temporaneamente nascosto dall'interfaccia 
             <button
               onClick={() => {
                 if (isGoogleConnected) {
@@ -262,6 +265,7 @@ export const App: React.FC = () => {
             >
               <span>{isGoogleConnected ? '✅ Google Calendar Connesso' : '📅 Connetti Google Calendar'}</span>
             </button>
+            */}
 
             <button
               onClick={handleInstallClick}
