@@ -37,7 +37,7 @@ export const App: React.FC = () => {
     return !!getStoredGoogleToken();
   });
   // Riferimenti temporanei per mantenere il codice pronto per la futura integrazione permanente
-  void isGoogleConnected; void setIsGoogleConnected; void requestGoogleCalendarAccess; void logoutGoogleCalendar;
+  void isGoogleConnected; void setIsGoogleConnected; void requestGoogleCalendarAccess; void logoutGoogleCalendar; void syncDailySummaryToGoogleCalendar;
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isAppInstalled, setIsAppInstalled] = useState<boolean>(() => {
@@ -145,13 +145,12 @@ export const App: React.FC = () => {
     setPresences(updated);
     await batchSavePresenceEntriesToCloud(updated);
 
-    // Se Google Calendar è connesso, effettua la sincronizzazione del riepilogo giornaliero unico
-    if (getStoredGoogleToken()) {
-      // Estrai le date uniche interessate dalle modifiche
-      const affectedDates = Array.from(new Set(Object.values(updated).map(entry => entry.date)));
-      affectedDates.forEach((dateStr) => {
-        syncDailySummaryToGoogleCalendar(dateStr, updated, ALL_PEOPLE);
-      });
+    // Sincronizzazione automatica permanente su Google Calendar tramite Supabase Edge Function
+    const affectedDates = Array.from(new Set(Object.values(updated).map(entry => entry.date)));
+    if (affectedDates.length > 0) {
+      supabase.functions.invoke('sync-google-calendar', {
+        body: { dateStrs: affectedDates }
+      }).catch(err => console.error('Errore invocazione sync-google-calendar:', err));
     }
   };
 
