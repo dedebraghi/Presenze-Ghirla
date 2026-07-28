@@ -159,6 +159,25 @@ serve(async (req) => {
         if (overnight) overnightPeople.push(person.name);
       });
 
+      // Aggiungi eventuali ospiti ed esterni registrati per questa data
+      if (allPresencesData) {
+        allPresencesData
+          .filter((row: any) => row.date === dateStr && row.person_id && row.person_id.startsWith('guest_'))
+          .forEach((row: any) => {
+            const rawParts = row.person_id.replace(/^guest_/, '').split('_');
+            if (rawParts.length > 1 && /^\d+$/.test(rawParts[rawParts.length - 1])) {
+              rawParts.pop();
+            }
+            const guestNameClean = rawParts
+              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ') + ' (Ospite)';
+
+            if (row.lunch && !lunchPeople.includes(guestNameClean)) lunchPeople.push(guestNameClean);
+            if (row.dinner && !dinnerPeople.includes(guestNameClean)) dinnerPeople.push(guestNameClean);
+            if (row.overnight && !overnightPeople.includes(guestNameClean)) overnightPeople.push(guestNameClean);
+          });
+      }
+
       const totalPresencesCount = lunchPeople.length + dinnerPeople.length + overnightPeople.length;
       const startDateTime = `${dateStr}T09:00:00`;
       const endDateTime = `${dateStr}T22:00:00`;

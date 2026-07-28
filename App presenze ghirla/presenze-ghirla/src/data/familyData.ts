@@ -3,6 +3,7 @@ export interface Person {
   name: string;
   familyId: string;
   isHost?: boolean;
+  isGuest?: boolean;
   avatarBg?: string;
 }
 

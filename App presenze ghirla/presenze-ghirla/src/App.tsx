@@ -3,6 +3,7 @@ import type { PresenceEntry, FamilyGroup, Person } from './data/familyData';
 import { FAMILY_GROUPS, ALL_PEOPLE } from './data/familyData';
 import { QuickAddModal } from './components/QuickAddModal';
 import { DayDetailModal } from './components/DayDetailModal';
+import { AddGuestModal } from './components/AddGuestModal';
 import {
   Plus,
   Users,
@@ -10,7 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
-  Download
+  Download,
+  UserPlus
 } from 'lucide-react';
 
 import { 
@@ -155,7 +157,12 @@ export const App: React.FC = () => {
   };
 
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isAddGuestOpen, setIsAddGuestOpen] = useState(false);
   const [selectedDayDetail, setSelectedDayDetail] = useState<string | null>(null);
+
+  const handleSavePresencesWithGuest = async (updated: Record<string, PresenceEntry>, _newGuest?: Person) => {
+    await handleSavePresences(updated);
+  };
 
   const [activeFamilyFilter, setActiveFamilyFilter] = useState<string | null>(null);
   const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
@@ -309,6 +316,27 @@ export const App: React.FC = () => {
             >
               <Plus size={24} />
               Segna Presenza
+            </button>
+
+            <button
+              onClick={() => setIsAddGuestOpen(true)}
+              style={{
+                backgroundColor: '#059669',
+                color: '#ffffff',
+                border: 'none',
+                padding: '14px 20px',
+                borderRadius: '16px',
+                fontWeight: 800,
+                fontSize: '17px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 14px rgba(5, 150, 105, 0.3)',
+                cursor: 'pointer'
+              }}
+            >
+              <UserPlus size={22} />
+              + Ospite / Esterno
             </button>
           </div>
 
@@ -640,6 +668,13 @@ export const App: React.FC = () => {
         onClose={() => setIsQuickAddOpen(false)}
         presences={presences}
         onSavePresences={handleSavePresences}
+      />
+
+      <AddGuestModal
+        isOpen={isAddGuestOpen}
+        onClose={() => setIsAddGuestOpen(false)}
+        presences={presences}
+        onSavePresences={handleSavePresencesWithGuest}
       />
 
       {selectedDayDetail && (
