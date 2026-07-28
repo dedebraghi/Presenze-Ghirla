@@ -21,25 +21,12 @@ import {
   getLocalPresences 
 } from './utils/presenceStorage';
 import { supabase } from './utils/supabaseClient';
-import { 
-  getStoredGoogleToken, 
-  requestGoogleCalendarAccess, 
-  logoutGoogleCalendar, 
-  syncDailySummaryToGoogleCalendar 
-} from './utils/googleCalendarApi';
-
 import { getLocalDateString } from './utils/dateUtils';
 
 export const App: React.FC = () => {
   const [presences, setPresences] = useState<Record<string, PresenceEntry>>(() => {
     return getLocalPresences();
   });
-
-  const [isGoogleConnected, setIsGoogleConnected] = useState<boolean>(() => {
-    return !!getStoredGoogleToken();
-  });
-  // Riferimenti temporanei per mantenere il codice pronto per la futura integrazione permanente
-  void isGoogleConnected; void setIsGoogleConnected; void requestGoogleCalendarAccess; void logoutGoogleCalendar; void syncDailySummaryToGoogleCalendar;
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isAppInstalled, setIsAppInstalled] = useState<boolean>(() => {
@@ -242,37 +229,6 @@ export const App: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-            {/* Pulsante Google Calendar temporaneamente nascosto dall'interfaccia 
-            <button
-              onClick={() => {
-                if (isGoogleConnected) {
-                  logoutGoogleCalendar();
-                  setIsGoogleConnected(false);
-                } else {
-                  requestGoogleCalendarAccess(
-                    () => setIsGoogleConnected(true),
-                    (err) => alert('Impossibile connettere Google Calendar: ' + JSON.stringify(err))
-                  );
-                }
-              }}
-              style={{
-                backgroundColor: isGoogleConnected ? '#16a34a' : '#2563eb',
-                color: '#ffffff',
-                border: 'none',
-                padding: '14px 18px',
-                borderRadius: '16px',
-                fontWeight: 700,
-                fontSize: '15px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              <span>{isGoogleConnected ? '✅ Google Calendar Connesso' : '📅 Connetti Google Calendar'}</span>
-            </button>
-            */}
-
             {!isAppInstalled && (
               <button
                 onClick={handleInstallClick}
