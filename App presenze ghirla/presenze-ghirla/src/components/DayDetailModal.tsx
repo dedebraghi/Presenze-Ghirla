@@ -1,6 +1,5 @@
-import React from 'react';
-import type { PresenceEntry } from '../data/familyData';
-import { FAMILY_GROUPS, ALL_PEOPLE } from '../data/familyData';
+import type { PresenceEntry, Person } from '../data/familyData';
+import { FAMILY_GROUPS, ALL_PEOPLE, getPersonById } from '../data/familyData';
 import { Sun, Moon, Bed } from 'lucide-react';
 
 interface DayDetailModalProps {
@@ -28,7 +27,7 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
     year: 'numeric'
   });
 
-  const dayPresences = ALL_PEOPLE.map(person => {
+  const staticPresences = ALL_PEOPLE.map(person => {
     const key = `${dateStr}_${person.id}`;
     const isDefaultAlwaysPresent = person.id === 'stefano' || person.id === 'elena';
     const entry = presences[key] || {
@@ -40,6 +39,23 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
     };
     return { person, entry };
   });
+
+  const datePrefix = `${dateStr}_`;
+  const guestPresences: { person: Person; entry: PresenceEntry }[] = [];
+  Object.keys(presences).forEach(key => {
+    if (key.startsWith(datePrefix)) {
+      const personId = key.substring(datePrefix.length);
+      if (personId.startsWith('guest_')) {
+        const entry = presences[key];
+        if (entry) {
+          const person = getPersonById(personId);
+          guestPresences.push({ person, entry });
+        }
+      }
+    }
+  });
+
+  const dayPresences = [...staticPresences, ...guestPresences];
 
   const totalLunch = dayPresences.filter(p => p.entry.lunch).length;
   const totalDinner = dayPresences.filter(p => p.entry.dinner).length;
@@ -120,15 +136,26 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
             <div style={{ fontSize: '32px', fontWeight: 800, color: '#4338ca', marginTop: '2px' }}>
               {totalOvernight}
             </div>
-            <span style={{ fontSize: '13px', color: '#64748b' }}>persone</span>
           </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-          {FAMILY_GROUPS.map(group => {
-            const groupMembers = dayPresences.filter(p => p.person.familyId === group.id);
+          {(() => {
+            const allGroups = [
+              ...FAMILY_GROUPS,
+              { id: 'ospiti', name: 'Ospiti ed Esterni', badgeColor: '#ec4899', members: [] }
+            ];
+            return allGroups.map(group => {
+              const groupMembers = dayPresences.filter(p => {
+                if (group.id === 'ospiti') {
+                  return p.person.familyId === 'ospiti' || !FAMILY_GROUPS.some(fg => fg.id === p.person.familyId);
+                }
+                return p.person.familyId === group.id;
+              });
 
-            return (
+              if (groupMembers.length === 0 && group.id === 'ospiti') return null;
+
+              return (
               <div key={group.id} style={{
                 borderRadius: '16px',
                 border: '1px solid #e2e8f0',
@@ -226,7 +253,8 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
                 </div>
               </div>
             );
-          })}
+          });
+        })()}
         </div>
 
         <div className="modal-actions">

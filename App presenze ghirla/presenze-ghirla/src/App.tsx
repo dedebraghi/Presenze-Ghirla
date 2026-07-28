@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { PresenceEntry, FamilyGroup, Person } from './data/familyData';
-import { FAMILY_GROUPS, ALL_PEOPLE } from './data/familyData';
+import { FAMILY_GROUPS, ALL_PEOPLE, getPersonById } from './data/familyData';
 import { QuickAddModal } from './components/QuickAddModal';
 import { DayDetailModal } from './components/DayDetailModal';
 import { AddGuestModal } from './components/AddGuestModal';
@@ -87,6 +87,37 @@ export const App: React.FC = () => {
       dinner: isDefaultAlwaysPresent,
       overnight: isDefaultAlwaysPresent
     };
+  };
+
+  const getDayEntries = (dateStr: string) => {
+    const entriesMap = new Map<string, { person: Person; entry: PresenceEntry }>();
+
+    ALL_PEOPLE.forEach((p: Person) => {
+      if (!activeFamilyFilter || p.familyId === activeFamilyFilter) {
+        const entry = getEntryWithDefault(dateStr, p.id);
+        if (entry.lunch || entry.dinner || entry.overnight) {
+          entriesMap.set(p.id, { person: p, entry });
+        }
+      }
+    });
+
+    const datePrefix = `${dateStr}_`;
+    Object.keys(presences).forEach((key: string) => {
+      if (key.startsWith(datePrefix)) {
+        const personId = key.substring(datePrefix.length);
+        if (personId.startsWith('guest_') && !entriesMap.has(personId)) {
+          const entry = presences[key];
+          if (entry && (entry.lunch || entry.dinner || entry.overnight)) {
+            const person = getPersonById(personId);
+            if (!activeFamilyFilter || person.familyId === activeFamilyFilter || activeFamilyFilter === 'ospiti') {
+              entriesMap.set(personId, { person, entry });
+            }
+          }
+        }
+      }
+    });
+
+    return Array.from(entriesMap.values());
   };
 
   // Sottoscrizione ai cambiamenti in tempo reale (Realtime)
@@ -322,10 +353,7 @@ export const App: React.FC = () => {
               const isToday = idx === 0;
               const dayName = d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' });
 
-              const dayEntries = ALL_PEOPLE.map((p: Person) => {
-                const entry = getEntryWithDefault(dateStr, p.id);
-                return { person: p, entry };
-              }).filter((item: { person: Person; entry: PresenceEntry }) => item.entry && (item.entry.lunch || item.entry.dinner || item.entry.overnight));
+              const dayEntries = getDayEntries(dateStr);
 
               const countLunch = dayEntries.filter((i: { entry: PresenceEntry }) => i.entry.lunch).length;
               const countDinner = dayEntries.filter((i: { entry: PresenceEntry }) => i.entry.dinner).length;
@@ -552,13 +580,7 @@ export const App: React.FC = () => {
                 const dayNum = d.getDate();
                 const isTodayCell = dateStr === todayStr;
 
-                const dayEntries = ALL_PEOPLE
-                  .filter((p: Person) => !activeFamilyFilter || p.familyId === activeFamilyFilter)
-                  .map((p: Person) => {
-                    const entry = getEntryWithDefault(dateStr, p.id);
-                    return { person: p, entry };
-                  })
-                  .filter((item: { person: Person; entry: PresenceEntry }) => item.entry && (item.entry.lunch || item.entry.dinner || item.entry.overnight));
+                const dayEntries = getDayEntries(dateStr);
 
                 return (
                   <div

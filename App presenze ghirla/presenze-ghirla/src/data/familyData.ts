@@ -96,3 +96,46 @@ export const FAMILY_GROUPS: FamilyGroup[] = [
 ];
 
 export const ALL_PEOPLE: Person[] = FAMILY_GROUPS.flatMap(group => group.members);
+
+export function getPersonById(personId: string): Person {
+  const found = ALL_PEOPLE.find(p => p.id === personId);
+  if (found) return found;
+
+  if (personId.startsWith('guest_')) {
+    const raw = personId.replace(/^guest_/, '');
+    const parts = raw.split('_');
+
+    if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) {
+      parts.pop();
+    }
+
+    const knownFamilyIds = FAMILY_GROUPS.map(g => g.id);
+    let familyId = 'ospiti';
+    const familyIndex = parts.findIndex(p => knownFamilyIds.includes(p));
+    if (familyIndex !== -1) {
+      familyId = parts[familyIndex];
+      parts.splice(familyIndex, 1);
+    }
+
+    const cleanName = parts
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    return {
+      id: personId,
+      name: `${cleanName || 'Ospite'} (Ospite)`,
+      familyId,
+      avatarBg: '#ec4899',
+      isGuest: true
+    };
+  }
+
+  return {
+    id: personId,
+    name: personId,
+    familyId: 'ospiti',
+    avatarBg: '#ec4899',
+    isGuest: true
+  };
+}
+

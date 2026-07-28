@@ -39,7 +39,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
 
     // Genera ID unico per l'ospite
     const cleanSlug = trimmedName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const guestId = `guest_${cleanSlug}_${Date.now().toString().slice(-4)}`;
+    const guestId = `guest_${cleanSlug}_${invitedByFamilyId}_${Date.now().toString().slice(-4)}`;
 
     const newGuest: Person = {
       id: guestId,

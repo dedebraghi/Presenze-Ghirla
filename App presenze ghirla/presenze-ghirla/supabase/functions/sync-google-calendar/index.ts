@@ -168,7 +168,9 @@ serve(async (req) => {
             if (rawParts.length > 1 && /^\d+$/.test(rawParts[rawParts.length - 1])) {
               rawParts.pop();
             }
-            const guestNameClean = rawParts
+            const knownFamilyIds = ['stefano-elena', 'luigi-eli', 'luca-eleonora', 'cecilia-davide', 'giacomo-maria', 'pietro-maria', 'caterina-mario', 'ospiti'];
+            const nameParts = rawParts.filter((p: string) => !knownFamilyIds.includes(p));
+            const guestNameClean = (nameParts.length > 0 ? nameParts : ['Ospite'])
               .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
               .join(' ') + ' (Ospite)';
 
