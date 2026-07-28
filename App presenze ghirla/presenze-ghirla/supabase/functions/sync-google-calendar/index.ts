@@ -72,6 +72,29 @@ async function getGoogleAccessToken(serviceAccount: any) {
   return tokenData.access_token;
 }
 
+const ALL_PEOPLE = [
+  { id: 'stefano', name: 'Stefano' },
+  { id: 'elena', name: 'Elena' },
+  { id: 'luigi', name: 'Luigi' },
+  { id: 'elisabetta', name: 'Elisabetta' },
+  { id: 'luca', name: 'Luca' },
+  { id: 'eleonora', name: 'Eleonora' },
+  { id: 'cecilia', name: 'Cecilia' },
+  { id: 'davide', name: 'Davide' },
+  { id: 'giacomo', name: 'Giacomo' },
+  { id: 'maria_o', name: 'Maria O.' },
+  { id: 'peppo', name: 'Peppo' },
+  { id: 'marghe', name: 'Marghe' },
+  { id: 'fiammi', name: 'Fiammi' },
+  { id: 'michi', name: 'Michi' },
+  { id: 'pietro', name: 'Pietro' },
+  { id: 'maria_r', name: 'Maria R.' },
+  { id: 'monicotti', name: 'Monicotti' },
+  { id: 'isa', name: 'Isa' },
+  { id: 'caterina', name: 'Caterina' },
+  { id: 'mario', name: 'Mario' },
+];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -112,17 +135,8 @@ serve(async (req) => {
       });
     }
 
-    const ALL_PEOPLE = [
-      { id: 'stefano', name: 'Stefano' },
-      { id: 'elena', name: 'Elena' },
-      { id: 'davide', name: 'Davide' },
-      { id: 'marco', name: 'Marco' },
-      { id: 'chiara', name: 'Chiara' },
-      { id: 'francesca', name: 'Francesca' },
-      { id: 'alessandro', name: 'Alessandro' },
-    ];
-
     const targetDates: string[] = Array.isArray(dateStrs) ? dateStrs : [dateStrs];
+    const encodedCalendarId = encodeURIComponent(calendarId);
 
     for (const dateStr of targetDates) {
       if (!dateStr) continue;
@@ -146,27 +160,35 @@ serve(async (req) => {
       });
 
       const totalPresencesCount = lunchPeople.length + dinnerPeople.length + overnightPeople.length;
-      const eventSearchQuery = 'Presenze Ghirla';
       const startDateTime = `${dateStr}T09:00:00`;
       const endDateTime = `${dateStr}T22:00:00`;
       const timeZone = 'Europe/Rome';
 
-      const encodedCalendarId = encodeURIComponent(calendarId);
-      const listUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events?q=${encodeURIComponent(eventSearchQuery)}&timeMin=${dateStr}T00:00:00Z&timeMax=${dateStr}T23:59:59Z`;
+      // Event ID deterministico unico basato sulla data (es. ghirla20260728)
+      // Caratteri validi per ID Google Calendar: 0-9 e a-v (base32hex)
+      const cleanDate = dateStr.replace(/-/g, '');
+      const eventId = `ghirla${cleanDate}`;
 
+      // Pulisci eventuali duplicati creati in precedenza per questa data con ricerca libera
+      const listUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events?q=${encodeURIComponent('Presenze Ghirla')}&timeMin=${dateStr}T00:00:00Z&timeMax=${dateStr}T23:59:59Z`;
       const searchRes = await fetch(listUrl, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
-      if (!searchRes.ok) {
-        console.error('Failed search in Google Calendar API:', await searchRes.text());
-        continue;
+      if (searchRes.ok) {
+        const searchData = await searchRes.json();
+        if (searchData.items && searchData.items.length > 0) {
+          for (const item of searchData.items) {
+            // Elimina vecchi eventi che NON hanno l'ID deterministico unico
+            if (item.id !== eventId && item.summary && item.summary.includes('Presenze Ghirla')) {
+              await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${item.id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${accessToken}` },
+              });
+            }
+          }
+        }
       }
-
-      const searchData = await searchRes.json();
-      const existingEvent = searchData.items && searchData.items.length > 0
-        ? searchData.items.find((item: any) => item.summary && item.summary.includes('Presenze Ghirla'))
-        : null;
 
       if (totalPresencesCount > 0) {
         const parts = dateStr.split('-');
@@ -182,6 +204,7 @@ serve(async (req) => {
         ];
 
         const eventBody = {
+          id: eventId,
           summary: eventSummary,
           description: descriptionLines.join('\n'),
           location: 'Casa Ghirla, Valganna',
@@ -189,8 +212,15 @@ serve(async (req) => {
           end: { dateTime: endDateTime, timeZone },
         };
 
-        if (existingEvent) {
-          await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${existingEvent.id}`, {
+        // Verifica se l'evento deterministico esiste già
+        const checkUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${eventId}`;
+        const checkRes = await fetch(checkUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (checkRes.ok) {
+          // Aggiorna l'evento esistente
+          await fetch(checkUrl, {
             method: 'PUT',
             headers: {
               Authorization: `Bearer ${accessToken}`,
@@ -199,6 +229,7 @@ serve(async (req) => {
             body: JSON.stringify(eventBody),
           });
         } else {
+          // Crea l'evento con l'ID univoco
           await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events`, {
             method: 'POST',
             headers: {
@@ -208,8 +239,9 @@ serve(async (req) => {
             body: JSON.stringify(eventBody),
           });
         }
-      } else if (existingEvent) {
-        await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${existingEvent.id}`, {
+      } else {
+        // Se 0 presenze, elimina l'evento se presente
+        await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${eventId}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${accessToken}` },
         });
