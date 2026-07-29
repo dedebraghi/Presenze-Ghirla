@@ -1,4 +1,3 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -95,7 +94,7 @@ const ALL_PEOPLE = [
   { id: 'mario', name: 'Mario' },
 ];
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -190,7 +189,7 @@ serve(async (req) => {
       const cleanDate = dateStr.replace(/-/g, '');
       const eventId = `ghirla${cleanDate}`;
 
-      // Pulisci eventuali duplicati creati in precedenza per questa data con ricerca libera
+      // 1. Cerca ed elimina qualsiasi vecchio evento duplicato presente per quel giorno
       const listUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events?q=${encodeURIComponent('Presenze Ghirla')}&timeMin=${dateStr}T00:00:00Z&timeMax=${dateStr}T23:59:59Z`;
       const searchRes = await fetch(listUrl, {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -200,12 +199,12 @@ serve(async (req) => {
         const searchData = await searchRes.json();
         if (searchData.items && searchData.items.length > 0) {
           for (const item of searchData.items) {
-            // Elimina vecchi eventi che NON hanno l'ID deterministico unico
-            if (item.id !== eventId && item.summary && item.summary.includes('Presenze Ghirla')) {
+            // Elimina vecchi eventi che NON hanno l'ID deterministico unico oppure se siamo a 0 presenze elimina tutti
+            if (totalPresencesCount === 0 || item.id !== eventId) {
               await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${item.id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${accessToken}` },
-              });
+              }).catch(() => {});
             }
           }
         }
@@ -240,7 +239,7 @@ serve(async (req) => {
         });
 
         if (checkRes.ok) {
-          // Aggiorna l'evento esistente
+          // Aggiorna completamente l'evento esistente
           await fetch(checkUrl, {
             method: 'PUT',
             headers: {
@@ -261,11 +260,11 @@ serve(async (req) => {
           });
         }
       } else {
-        // Se 0 presenze, elimina l'evento se presente
+        // Se 0 presenze, cancella anche direttamente tramite l'ID deterministico
         await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${eventId}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        }).catch(() => {});
       }
     }
 

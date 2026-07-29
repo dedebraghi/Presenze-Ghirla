@@ -4,6 +4,7 @@ import { FAMILY_GROUPS, ALL_PEOPLE, getPersonById } from './data/familyData';
 import { QuickAddModal } from './components/QuickAddModal';
 import { DayDetailModal } from './components/DayDetailModal';
 import { AddGuestModal } from './components/AddGuestModal';
+import { FunnyStatsModal } from './components/FunnyStatsModal';
 import {
   Plus,
   Users,
@@ -12,7 +13,8 @@ import {
   ChevronRight,
   Home,
   Download,
-  UserPlus
+  UserPlus,
+  BarChart3
 } from 'lucide-react';
 
 import { 
@@ -176,6 +178,7 @@ export const App: React.FC = () => {
 
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
   const [isAddGuestOpen, setIsAddGuestOpen] = useState(false);
+  const [isFunnyStatsOpen, setIsFunnyStatsOpen] = useState(false);
   const [selectedDayDetail, setSelectedDayDetail] = useState<string | null>(null);
 
   const handleSavePresencesWithGuest = async (updated: Record<string, PresenceEntry>, _newGuest?: Person) => {
@@ -324,6 +327,29 @@ export const App: React.FC = () => {
             >
               <UserPlus size={22} />
               + Ospite / Esterno
+            </button>
+
+            <button
+              onClick={() => setIsFunnyStatsOpen(true)}
+              title="Vedi le statistiche divertenti di Casa Ghirla"
+              style={{
+                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                color: '#ffffff',
+                border: 'none',
+                padding: '14px 20px',
+                borderRadius: '16px',
+                fontWeight: 800,
+                fontSize: '17px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 14px rgba(99, 102, 241, 0.4)',
+                cursor: 'pointer',
+                transition: 'transform 0.15s ease, boxShadow 0.15s ease'
+              }}
+            >
+              <BarChart3 size={22} />
+              📊 Funny Stats
             </button>
           </div>
 
@@ -664,6 +690,12 @@ export const App: React.FC = () => {
           onSavePresences={handleSavePresences}
         />
       )}
+
+      <FunnyStatsModal
+        isOpen={isFunnyStatsOpen}
+        onClose={() => setIsFunnyStatsOpen(false)}
+        presences={presences}
+      />
 
     </div>
   );
