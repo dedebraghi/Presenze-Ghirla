@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PresenceEntry } from '../data/familyData';
 import { getPersonById } from '../data/familyData';
+import { getLocalDateString } from '../utils/dateUtils';
 import { X, Trophy, Moon, Utensils, Flame, Calendar, Sparkles } from 'lucide-react';
 
 interface FunnyStatsModalProps {
@@ -16,6 +17,7 @@ export const FunnyStatsModal: React.FC<FunnyStatsModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  const todayStr = getLocalDateString();
   const entries = Object.values(presences);
 
   // Mappe per aggregazioni
@@ -30,6 +32,8 @@ export const FunnyStatsModal: React.FC<FunnyStatsModalProps> = ({
 
   entries.forEach(entry => {
     const { date, personId, lunch, dinner, overnight } = entry;
+    // Escludi giornate future non ancora trascorse
+    if (date > todayStr) return;
     if (!lunch && !dinner && !overnight) return;
 
     const person = getPersonById(personId);
