@@ -33,6 +33,18 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
 
+  const [showMultiGuestModal, setShowMultiGuestModal] = useState(false);
+  const [detectedNames, setDetectedNames] = useState<string[]>([]);
+  const [pendingSaveNames, setPendingSaveNames] = useState<string[] | null>(null);
+
+  const parseGuestNames = (input: string): string[] => {
+    return input
+      .split(/[,&\s]+|\s+e\s+|\s+E\s+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0)
+      .map(s => s.charAt(0).toUpperCase() + s.slice(1));
+  };
+
   // Calcolo della distanza di Levenshtein per refusi / soprannomi simili
   const levenshteinDistance = (a: string, b: string): number => {
     const matrix: number[][] = [];
@@ -137,53 +149,59 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
     return resultDetails;
   };
 
-  const handleSaveGuest = (bypassWarning = false) => {
-    const trimmedName = guestName.trim();
-    if (!trimmedName) {
-      alert("Inserisci il nome dell'ospite o dell'esterno!");
-      return;
-    }
-
+  const processSaveGuests = (names: string[], bypassWarning = false) => {
     if (!bypassWarning) {
-      const similarMatches = checkSimilarGuests(trimmedName, startDate, endDate);
-      if (similarMatches.length > 0) {
+      const allMatches: string[] = [];
+      names.forEach(name => {
+        const matches = checkSimilarGuests(name, startDate, endDate);
+        if (matches.length > 0) {
+          allMatches.push(`Per "${name}":\n${matches.map(m => `• ${m}`).join('\n')}`);
+        }
+      });
+
+      if (allMatches.length > 0) {
+        setPendingSaveNames(names);
         setWarningMessage(
-          `Attenzione! Risulta già presente un ospite con nome uguale o simile:\n${similarMatches.map(m => `• ${m}`).join('\n')}\n\nConfermi che si tratta di due persone DIVERSE?`
+          `Attenzione! Risulta già presente un ospite con nome uguale o simile:\n\n${allMatches.join('\n\n')}\n\nConfermi l'inserimento?`
         );
         setShowWarningModal(true);
+        setShowMultiGuestModal(false);
         return;
       }
     }
 
-    // Genera ID unico per l'ospite
-    const cleanSlug = trimmedName.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const guestId = `guest_${cleanSlug}_${invitedByFamilyId}_${Date.now().toString().slice(-4)}`;
-
-    const newGuest: Person = {
-      id: guestId,
-      name: `${trimmedName} (Ospite)`,
-      familyId: invitedByFamilyId,
-      avatarBg: '#ec4899',
-      isGuest: true
-    };
-
     const updated = { ...presences };
     const start = new Date(startDate);
     const end = new Date(endDate);
+    let lastGuestCreated: Person | undefined = undefined;
 
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateStr = getLocalDateString(d);
-      const key = `${dateStr}_${guestId}`;
-      updated[key] = {
-        date: dateStr,
-        personId: guestId,
-        lunch,
-        dinner,
-        overnight
+    names.forEach((name, idx) => {
+      const cleanSlug = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const guestId = `guest_${cleanSlug}_${invitedByFamilyId}_${Date.now().toString().slice(-4)}${idx}`;
+
+      const newGuest: Person = {
+        id: guestId,
+        name: `${name} (Ospite)`,
+        familyId: invitedByFamilyId,
+        avatarBg: '#ec4899',
+        isGuest: true
       };
-    }
+      lastGuestCreated = newGuest;
 
-    onSavePresences(updated, newGuest);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const dateStr = getLocalDateString(d);
+        const key = `${dateStr}_${guestId}`;
+        updated[key] = {
+          date: dateStr,
+          personId: guestId,
+          lunch,
+          dinner,
+          overnight
+        };
+      }
+    });
+
+    onSavePresences(updated, lastGuestCreated);
 
     try {
       confetti({
@@ -196,7 +214,26 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
     // Reset campi e chiudi
     setGuestName('');
     setShowWarningModal(false);
+    setShowMultiGuestModal(false);
+    setPendingSaveNames(null);
     onClose();
+  };
+
+  const handleSaveGuest = () => {
+    const trimmedName = guestName.trim();
+    if (!trimmedName) {
+      alert("Inserisci il nome dell'ospite o dell'esterno!");
+      return;
+    }
+
+    const parsed = parseGuestNames(trimmedName);
+    if (parsed.length > 1) {
+      setDetectedNames(parsed);
+      setShowMultiGuestModal(true);
+      return;
+    }
+
+    processSaveGuests([trimmedName]);
   };
 
   return (
@@ -390,7 +427,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
           {/* Bottone di conferma */}
           <button
             type="button"
-            onClick={() => handleSaveGuest(false)}
+            onClick={handleSaveGuest}
             style={{
               marginTop: '10px',
               backgroundColor: '#059669',
@@ -413,6 +450,87 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
           </button>
         </div>
 
+        {/* Modal di Selezione 1 Persona vs N Persone */}
+        {showMultiGuestModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '16px'
+          }}>
+            <div style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '20px',
+              padding: '24px',
+              maxWidth: '480px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+              border: '2px solid #0284c7',
+              animation: 'fadeIn 0.2s ease-in-out'
+            }}>
+              <div style={{ fontSize: '36px', textAlign: 'center', marginBottom: '8px' }}>
+                👥
+              </div>
+              <h3 style={{ fontSize: '19px', fontWeight: 800, color: '#0369a1', textAlign: 'center', marginBottom: '12px' }}>
+                Rilevati più nomi nel testo
+              </h3>
+              <p style={{ fontSize: '15px', color: '#334155', lineHeight: '1.5', marginBottom: '20px', textAlign: 'center' }}>
+                Hai scritto <strong>"{guestName}"</strong>.<br />
+                Si tratta di <strong>1 persona sola</strong> con nome composto o di <strong>{detectedNames.length} persone distinte</strong>?
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => processSaveGuests([guestName.trim()])}
+                  style={{
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    backgroundColor: '#f8fafc',
+                    color: '#1e293b',
+                    fontWeight: 700,
+                    fontSize: '15px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  👤 Inserisci 1 persona ("{guestName.trim()}")
+                </button>
+                <button
+                  type="button"
+                  onClick={() => processSaveGuests(detectedNames)}
+                  style={{
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: '#0284c7',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '15px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  👥 Inserisci {detectedNames.length} persone ({detectedNames.join(', ')})
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Modal di Avviso per Ospite Duplicato / Simile */}
         {showWarningModal && (
           <div style={{
@@ -423,7 +541,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1100,
+            zIndex: 1150,
             padding: '16px'
           }}>
             <div style={{
@@ -466,7 +584,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSaveGuest(true)}
+                  onClick={() => processSaveGuests(pendingSaveNames || [guestName.trim()], true)}
                   style={{
                     flex: 1,
                     padding: '12px',
@@ -480,7 +598,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
                     boxShadow: '0 4px 12px rgba(217, 119, 6, 0.3)'
                   }}
                 >
-                  Sì, sono 2 persone diverse
+                  Sì, procedi comunque
                 </button>
               </div>
             </div>

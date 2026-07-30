@@ -1,6 +1,6 @@
 import type { PresenceEntry, Person } from '../data/familyData';
 import { FAMILY_GROUPS, ALL_PEOPLE, getPersonById } from '../data/familyData';
-import { Sun, Moon, Bed } from 'lucide-react';
+import { Sun, Moon, Bed, Trash2 } from 'lucide-react';
 
 interface DayDetailModalProps {
   dateStr: string;
@@ -18,6 +18,28 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
   onSavePresences
 }) => {
   if (!isOpen) return null;
+
+  const handleDeleteGuest = (personId: string, personName: string) => {
+    const cleanName = personName.replace(/\s*\(Ospite\)$/i, '').trim();
+    if (!window.confirm(`Sei sicuro di voler eliminare l'ospite "${cleanName}" e rimuovere le sue presenze?`)) {
+      return;
+    }
+
+    const updated = { ...presences };
+    let removedCount = 0;
+    Object.keys(updated).forEach(key => {
+      const parts = key.split('_');
+      const keyPersonId = parts.slice(1).join('_');
+      if (keyPersonId === personId) {
+        delete updated[key];
+        removedCount++;
+      }
+    });
+
+    if (removedCount > 0) {
+      onSavePresences(updated);
+    }
+  };
 
   const dateObj = new Date(dateStr);
   const formattedDateStr = dateObj.toLocaleDateString('it-IT', {
@@ -212,6 +234,30 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
                         <span style={{ fontWeight: 700, color: '#1e293b', fontSize: '16px' }}>
                           {person.name}
                         </span>
+                        {(person.isGuest || person.id.startsWith('guest_')) && (
+                          <button
+                            type="button"
+                            title="Elimina ospite"
+                            onClick={() => handleDeleteGuest(person.id, person.name)}
+                            style={{
+                              background: '#fee2e2',
+                              border: 'none',
+                              color: '#dc2626',
+                              cursor: 'pointer',
+                              padding: '4px 8px',
+                              borderRadius: '8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              marginLeft: '6px'
+                            }}
+                          >
+                            <Trash2 size={14} />
+                            Elimina
+                          </button>
+                        )}
                       </div>
 
                       <div className="modal-person-row-buttons">
