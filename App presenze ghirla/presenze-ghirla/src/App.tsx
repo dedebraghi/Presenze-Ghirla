@@ -254,11 +254,14 @@ export const App: React.FC = () => {
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', paddingBottom: '60px' }}>
       
       <header style={{
-        backgroundColor: '#1e3a8a',
+        backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.65), rgba(15, 23, 42, 0.75)), url('/PXL_20260711_193548782.NIGHT.jpg')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         color: '#ffffff',
-        padding: '24px 20px',
-        boxShadow: '0 4px 20px rgba(30, 58, 138, 0.25)',
-        borderBottom: '4px solid #ea580c'
+        padding: '36px 20px',
+        boxShadow: '0 4px 20px rgba(15, 23, 42, 0.4)',
+        borderBottom: '4px solid #ea580c',
+        position: 'relative'
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
           
