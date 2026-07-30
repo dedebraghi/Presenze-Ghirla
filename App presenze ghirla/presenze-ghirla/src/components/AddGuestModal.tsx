@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { PresenceEntry, Person } from '../data/familyData';
-import { FAMILY_GROUPS } from '../data/familyData';
+import { FAMILY_GROUPS, getPersonById } from '../data/familyData';
 import { Sun, Moon, Bed, Check, UserPlus } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getLocalDateString } from '../utils/dateUtils';
@@ -30,11 +30,80 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
   const [dinner, setDinner] = useState(true);
   const [overnight, setOvernight] = useState(true);
 
-  const handleSaveGuest = () => {
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warningMessage, setWarningMessage] = useState('');
+
+  const checkSimilarGuests = (name: string, start: string, end: string) => {
+    const cleanNew = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!cleanNew) return [];
+
+    const existingGuestMap = new Map<string, { baseName: string; familyName: string }>();
+
+    const startDateObj = new Date(start);
+    const endDateObj = new Date(end);
+
+    Object.keys(presences).forEach(key => {
+      const parts = key.split('_');
+      const dateStr = parts[0];
+      const personId = parts.slice(1).join('_');
+
+      if (personId.startsWith('guest_')) {
+        const d = new Date(dateStr);
+        if (d >= startDateObj && d <= endDateObj) {
+          const person = getPersonById(personId);
+          // Rimuovi " (Ospite)" per il confronto
+          const baseName = person.name.replace(/\s*\(Ospite\)$/i, '').trim();
+          const family = FAMILY_GROUPS.find(g => g.id === person.familyId);
+          const familyName = family ? family.name : 'altra famiglia';
+
+          if (baseName) {
+            existingGuestMap.set(personId, { baseName, familyName });
+          }
+        }
+      }
+    });
+
+    const matchesMap = new Map<string, string[]>(); // baseName -> Array di famiglie
+    existingGuestMap.forEach(({ baseName, familyName }) => {
+      const cleanExisting = baseName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (
+        cleanExisting === cleanNew ||
+        cleanExisting.includes(cleanNew) ||
+        cleanNew.includes(cleanExisting)
+      ) {
+        if (!matchesMap.has(baseName)) {
+          matchesMap.set(baseName, []);
+        }
+        if (!matchesMap.get(baseName)!.includes(familyName)) {
+          matchesMap.get(baseName)!.push(familyName);
+        }
+      }
+    });
+
+    const resultDetails: string[] = [];
+    matchesMap.forEach((families, baseName) => {
+      resultDetails.push(`"${baseName}" per ${families.join(', ')}`);
+    });
+
+    return resultDetails;
+  };
+
+  const handleSaveGuest = (bypassWarning = false) => {
     const trimmedName = guestName.trim();
     if (!trimmedName) {
       alert("Inserisci il nome dell'ospite o dell'esterno!");
       return;
+    }
+
+    if (!bypassWarning) {
+      const similarMatches = checkSimilarGuests(trimmedName, startDate, endDate);
+      if (similarMatches.length > 0) {
+        setWarningMessage(
+          `Attenzione! Risulta già presente un ospite con nome uguale o simile:\n${similarMatches.map(m => `• ${m}`).join('\n')}\n\nConfermi che si tratta di due persone DIVERSE?`
+        );
+        setShowWarningModal(true);
+        return;
+      }
     }
 
     // Genera ID unico per l'ospite
@@ -77,6 +146,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
 
     // Reset campi e chiudi
     setGuestName('');
+    setShowWarningModal(false);
     onClose();
   };
 
@@ -271,7 +341,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
           {/* Bottone di conferma */}
           <button
             type="button"
-            onClick={handleSaveGuest}
+            onClick={() => handleSaveGuest(false)}
             style={{
               marginTop: '10px',
               backgroundColor: '#059669',
@@ -293,7 +363,82 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
             Conferma e Segna Presenza Ospite
           </button>
         </div>
+
+        {/* Modal di Avviso per Ospite Duplicato / Simile */}
+        {showWarningModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '16px'
+          }}>
+            <div style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '20px',
+              padding: '24px',
+              maxWidth: '460px',
+              width: '100%',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+              border: '2px solid #f59e0b',
+              animation: 'fadeIn 0.2s ease-in-out'
+            }}>
+              <div style={{ fontSize: '36px', textAlign: 'center', marginBottom: '8px' }}>
+                ⚠️
+              </div>
+              <h3 style={{ fontSize: '19px', fontWeight: 800, color: '#92400e', textAlign: 'center', marginBottom: '12px' }}>
+                Possibile Ospite Duplicato
+              </h3>
+              <p style={{ fontSize: '15px', color: '#334155', lineHeight: '1.5', whiteSpace: 'pre-line', marginBottom: '24px', textAlign: 'center' }}>
+                {warningMessage}
+              </p>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowWarningModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #cbd5e1',
+                    backgroundColor: '#f8fafc',
+                    color: '#475569',
+                    fontWeight: 700,
+                    fontSize: '15px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Annulla inserimento
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveGuest(true)}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: '#d97706',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '15px',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(217, 119, 6, 0.3)'
+                  }}
+                >
+                  Sì, sono 2 persone diverse
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
+

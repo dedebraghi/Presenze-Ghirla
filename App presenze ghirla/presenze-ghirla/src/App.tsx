@@ -104,6 +104,8 @@ export const App: React.FC = () => {
     });
 
     const datePrefix = `${dateStr}_`;
+    const guestEntriesList: { person: Person; entry: PresenceEntry }[] = [];
+
     Object.keys(presences).forEach((key: string) => {
       if (key.startsWith(datePrefix)) {
         const personId = key.substring(datePrefix.length);
@@ -112,11 +114,32 @@ export const App: React.FC = () => {
           if (entry && (entry.lunch || entry.dinner || entry.overnight)) {
             const person = getPersonById(personId);
             if (!activeFamilyFilter || person.familyId === activeFamilyFilter || activeFamilyFilter === 'ospiti') {
-              entriesMap.set(personId, { person, entry });
+              guestEntriesList.push({ person, entry });
             }
           }
         }
       }
+    });
+
+    // Deduplica o unisci gli ospiti con lo stesso nome pulito se si applica la vista globale
+    const deduplicatedGuestMap = new Map<string, { person: Person; entry: PresenceEntry }>();
+    guestEntriesList.forEach(item => {
+      const cleanNameKey = item.person.name.toLowerCase().trim();
+      if (!deduplicatedGuestMap.has(cleanNameKey)) {
+        deduplicatedGuestMap.set(cleanNameKey, {
+          person: item.person,
+          entry: { ...item.entry }
+        });
+      } else {
+        const existing = deduplicatedGuestMap.get(cleanNameKey)!;
+        existing.entry.lunch = existing.entry.lunch || item.entry.lunch;
+        existing.entry.dinner = existing.entry.dinner || item.entry.dinner;
+        existing.entry.overnight = existing.entry.overnight || item.entry.overnight;
+      }
+    });
+
+    deduplicatedGuestMap.forEach((item, _key) => {
+      entriesMap.set(item.person.id, item);
     });
 
     return Array.from(entriesMap.values());

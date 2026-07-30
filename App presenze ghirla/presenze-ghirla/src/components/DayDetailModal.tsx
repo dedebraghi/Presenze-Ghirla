@@ -57,9 +57,34 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
 
   const dayPresences = [...staticPresences, ...guestPresences];
 
-  const totalLunch = dayPresences.filter(p => p.entry.lunch).length;
-  const totalDinner = dayPresences.filter(p => p.entry.dinner).length;
-  const totalOvernight = dayPresences.filter(p => p.entry.overnight).length;
+  // Per il conteggio totale delle teste dei pasti nella modale di dettaglio, deduplica gli ospiti con lo stesso nome
+  const deduplicatedDayPresencesForTotals: { person: Person; entry: PresenceEntry }[] = [];
+  const guestTotalsMap = new Map<string, { person: Person; entry: PresenceEntry }>();
+
+  dayPresences.forEach(item => {
+    if (item.person.isGuest) {
+      const cleanName = item.person.name.toLowerCase().trim();
+      if (!guestTotalsMap.has(cleanName)) {
+        guestTotalsMap.set(cleanName, {
+          person: item.person,
+          entry: { ...item.entry }
+        });
+      } else {
+        const existing = guestTotalsMap.get(cleanName)!;
+        existing.entry.lunch = existing.entry.lunch || item.entry.lunch;
+        existing.entry.dinner = existing.entry.dinner || item.entry.dinner;
+        existing.entry.overnight = existing.entry.overnight || item.entry.overnight;
+      }
+    } else {
+      deduplicatedDayPresencesForTotals.push(item);
+    }
+  });
+
+  guestTotalsMap.forEach(val => deduplicatedDayPresencesForTotals.push(val));
+
+  const totalLunch = deduplicatedDayPresencesForTotals.filter(p => p.entry.lunch).length;
+  const totalDinner = deduplicatedDayPresencesForTotals.filter(p => p.entry.dinner).length;
+  const totalOvernight = deduplicatedDayPresencesForTotals.filter(p => p.entry.overnight).length;
 
   const toggleMeal = (personId: string, type: 'lunch' | 'dinner' | 'overnight') => {
     const key = `${dateStr}_${personId}`;
