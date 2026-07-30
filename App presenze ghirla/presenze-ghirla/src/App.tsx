@@ -250,18 +250,33 @@ export const App: React.FC = () => {
     setCurrentMonthDate(new Date(year, month + 1, 1));
   };
 
+  const headerPhotos = [
+    '/PXL_20260711_193548782.NIGHT.jpg',
+    '/PXL_20260711_193540212.MP.jpg'
+  ];
+  const [currentHeaderPhotoIndex, setCurrentHeaderPhotoIndex] = useState(0);
+
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentHeaderPhotoIndex((prevIndex) => (prevIndex + 1) % headerPhotos.length);
+    }, 6000); // Cambia foto ogni 6 secondi
+
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', paddingBottom: '60px' }}>
       
       <header style={{
-        backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.65), rgba(15, 23, 42, 0.75)), url('/PXL_20260711_193548782.NIGHT.jpg')`,
+        backgroundImage: `linear-gradient(rgba(15, 23, 42, 0.65), rgba(15, 23, 42, 0.75)), url('${headerPhotos[currentHeaderPhotoIndex]}')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         color: '#ffffff',
         padding: '36px 20px',
         boxShadow: '0 4px 20px rgba(15, 23, 42, 0.4)',
         borderBottom: '4px solid #ea580c',
-        position: 'relative'
+        position: 'relative',
+        transition: 'background-image 1.2s ease-in-out'
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
           
