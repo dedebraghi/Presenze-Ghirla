@@ -33,9 +33,63 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
 
+  // Calcolo della distanza di Levenshtein per refusi / soprannomi simili
+  const levenshteinDistance = (a: string, b: string): number => {
+    const matrix: number[][] = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    return matrix[b.length][a.length];
+  };
+
+  const areNamesSimilar = (str1: string, str2: string): boolean => {
+    const clean1 = str1.toLowerCase().trim();
+    const clean2 = str2.toLowerCase().trim();
+
+    if (!clean1 || !clean2) return false;
+
+    // 1. Inclusione diretta completa (senza spazi/punteggiatura)
+    const norm1 = clean1.replace(/[^a-z0-9]/g, '');
+    const norm2 = clean2.replace(/[^a-z0-9]/g, '');
+    if (norm1 === norm2 || (norm1.length >= 3 && norm2.includes(norm1)) || (norm2.length >= 3 && norm1.includes(norm2))) {
+      return true;
+    }
+
+    // 2. Confronto per parole (es. "Eva Tomasini" vs "Tommas")
+    const words1 = clean1.split(/\s+/).map(w => w.replace(/[^a-z0-9]/g, '')).filter(w => w.length >= 3);
+    const words2 = clean2.split(/\s+/).map(w => w.replace(/[^a-z0-9]/g, '')).filter(w => w.length >= 3);
+
+    for (const w1 of words1) {
+      for (const w2 of words2) {
+        // Se una parola è contenuta nell'altra (es. "tomasini" contiene "tomas" o "tommas")
+        if (w1.includes(w2) || w2.includes(w1)) return true;
+
+        // Se la differenza di caratteri (Levenshtein) è molto piccola relativa alla lunghezza
+        const dist = levenshteinDistance(w1, w2);
+        const maxLen = Math.max(w1.length, w2.length);
+        if (maxLen >= 4 && dist <= 2) return true;
+        if (maxLen === 3 && dist <= 1) return true;
+      }
+    }
+
+    return false;
+  };
+
   const checkSimilarGuests = (name: string, start: string, end: string) => {
-    const cleanNew = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (!cleanNew) return [];
+    if (!name.trim()) return [];
 
     const existingGuestMap = new Map<string, { baseName: string; familyName: string }>();
 
@@ -65,12 +119,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
 
     const matchesMap = new Map<string, string[]>(); // baseName -> Array di famiglie
     existingGuestMap.forEach(({ baseName, familyName }) => {
-      const cleanExisting = baseName.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if (
-        cleanExisting === cleanNew ||
-        cleanExisting.includes(cleanNew) ||
-        cleanNew.includes(cleanExisting)
-      ) {
+      if (areNamesSimilar(name, baseName)) {
         if (!matchesMap.has(baseName)) {
           matchesMap.set(baseName, []);
         }
