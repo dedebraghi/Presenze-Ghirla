@@ -20,6 +20,7 @@ import {
 import { 
   fetchPresencesFromCloud, 
   batchSavePresenceEntriesToCloud, 
+  deletePersonPresencesFromCloud,
   getLocalPresences 
 } from './utils/presenceStorage';
 import { supabase } from './utils/supabaseClient';
@@ -191,6 +192,18 @@ export const App: React.FC = () => {
     await batchSavePresenceEntriesToCloud(updated);
 
     // Sincronizzazione automatica permanente su Google Calendar tramite Supabase Edge Function
+    const affectedDates = Array.from(new Set(Object.values(updated).map(entry => entry.date)));
+    if (affectedDates.length > 0) {
+      supabase.functions.invoke('sync-google-calendar', {
+        body: { dateStrs: affectedDates }
+      }).catch(err => console.error('Errore invocazione sync-google-calendar:', err));
+    }
+  };
+
+  const handleDeleteGuestInCloud = async (personId: string) => {
+    const updated = await deletePersonPresencesFromCloud(personId);
+    setPresences(updated);
+
     const affectedDates = Array.from(new Set(Object.values(updated).map(entry => entry.date)));
     if (affectedDates.length > 0) {
       supabase.functions.invoke('sync-google-calendar', {
@@ -729,6 +742,7 @@ export const App: React.FC = () => {
           onClose={() => setSelectedDayDetail(null)}
           presences={presences}
           onSavePresences={handleSavePresences}
+          onDeleteGuest={handleDeleteGuestInCloud}
         />
       )}
 

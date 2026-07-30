@@ -93,3 +93,29 @@ export async function batchSavePresenceEntriesToCloud(entriesMap: Record<string,
     }
   }
 }
+
+// Elimina tutte le presenze di una persona/ospite sia dal cloud Supabase che dal localStorage
+export async function deletePersonPresencesFromCloud(personId: string): Promise<Record<string, PresenceEntry>> {
+  const local = getLocalPresences();
+  const updated: Record<string, PresenceEntry> = {};
+
+  Object.entries(local).forEach(([key, entry]) => {
+    if (entry.personId !== personId) {
+      updated[key] = entry;
+    }
+  });
+
+  savePresencesLocal(updated);
+
+  const { error } = await supabase
+    .from('presences')
+    .delete()
+    .eq('person_id', personId);
+
+  if (error) {
+    console.error(`Errore eliminazione presenze per la persona ${personId} da Supabase:`, error);
+  }
+
+  return updated;
+}
+

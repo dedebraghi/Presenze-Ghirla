@@ -8,6 +8,7 @@ interface DayDetailModalProps {
   onClose: () => void;
   presences: Record<string, PresenceEntry>;
   onSavePresences: (updated: Record<string, PresenceEntry>) => void;
+  onDeleteGuest?: (personId: string) => void;
 }
 
 export const DayDetailModal: React.FC<DayDetailModalProps> = ({
@@ -15,7 +16,8 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
   isOpen,
   onClose,
   presences,
-  onSavePresences
+  onSavePresences,
+  onDeleteGuest
 }) => {
   if (!isOpen) return null;
 
@@ -25,19 +27,23 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
       return;
     }
 
-    const updated = { ...presences };
-    let removedCount = 0;
-    Object.keys(updated).forEach(key => {
-      const parts = key.split('_');
-      const keyPersonId = parts.slice(1).join('_');
-      if (keyPersonId === personId) {
-        delete updated[key];
-        removedCount++;
-      }
-    });
+    if (onDeleteGuest) {
+      onDeleteGuest(personId);
+    } else {
+      const updated = { ...presences };
+      let removedCount = 0;
+      Object.keys(updated).forEach(key => {
+        const parts = key.split('_');
+        const keyPersonId = parts.slice(1).join('_');
+        if (keyPersonId === personId) {
+          delete updated[key];
+          removedCount++;
+        }
+      });
 
-    if (removedCount > 0) {
-      onSavePresences(updated);
+      if (removedCount > 0) {
+        onSavePresences(updated);
+      }
     }
   };
 
