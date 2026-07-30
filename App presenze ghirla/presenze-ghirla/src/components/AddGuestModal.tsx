@@ -526,6 +526,23 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
                 >
                   👥 Inserisci {detectedNames.length} persone ({detectedNames.join(', ')})
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMultiGuestModal(false)}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    backgroundColor: '#f1f5f9',
+                    color: '#64748b',
+                    fontWeight: 700,
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    marginTop: '4px'
+                  }}
+                >
+                  Annulla inserimento
+                </button>
               </div>
             </div>
           </div>
