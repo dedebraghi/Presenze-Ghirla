@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ALL_PEOPLE, type Person } from '../data/familyData';
 import type { CustomEvent, EventRsvp } from '../data/customEventsData';
-import { X, Check } from 'lucide-react';
+import { X, Check, Search } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface EventRsvpModalProps {
@@ -20,6 +20,8 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
   if (!isOpen || !event) return null;
 
   const [selectedPersonId, setSelectedPersonId] = useState<string>('stefano');
+  const [searchTerm, setSearchTerm] = useState<string>('Stefano');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   // Load existing RSVP for selected person if present
   const currentRsvp = event.rsvps ? event.rsvps[selectedPersonId] : null;
@@ -31,9 +33,12 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
   const [notes, setNotes] = useState<string>(currentRsvp?.notes || '');
   const [isSaving, setIsSaving] = useState(false);
 
-  const handlePersonChange = (personId: string) => {
-    setSelectedPersonId(personId);
-    const rsvp = event.rsvps ? event.rsvps[personId] : null;
+  const handleSelectPerson = (person: Person) => {
+    setSelectedPersonId(person.id);
+    setSearchTerm(person.name);
+    setIsDropdownOpen(false);
+
+    const rsvp = event.rsvps ? event.rsvps[person.id] : null;
     if (rsvp) {
       setStatus(rsvp.status);
       setSelectedSlots(rsvp.selectedSlots);
@@ -44,6 +49,34 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
       setNotes('');
     }
   };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setIsDropdownOpen(true);
+
+    // Auto-match if exact name is typed
+    const exactMatch = ALL_PEOPLE.find(
+      p => p.name.toLowerCase().trim() === value.toLowerCase().trim()
+    );
+    if (exactMatch) {
+      setSelectedPersonId(exactMatch.id);
+      const rsvp = event.rsvps ? event.rsvps[exactMatch.id] : null;
+      if (rsvp) {
+        setStatus(rsvp.status);
+        setSelectedSlots(rsvp.selectedSlots);
+        setNotes(rsvp.notes || '');
+      } else {
+        setStatus('yes');
+        setSelectedSlots(event.slots.map(s => s.id));
+        setNotes('');
+      }
+    }
+  };
+
+  // Filter people based on search term
+  const filteredPeople = ALL_PEOPLE.filter(p =>
+    p.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
+  );
 
   const handleToggleSlot = (slotId: string) => {
     if (selectedSlots.includes(slotId)) {
@@ -157,38 +190,109 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
 
         {/* Content */}
         <form onSubmit={handleSubmit} style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Person Selector */}
-          <div>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
-              👤 Chi sta rispondendo?
+          {/* Campo Libero con Autocompletamento per la Persona */}
+          <div style={{ position: 'relative' }}>
+            <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+              👤 Chi sta rispondendo? (Cerca o scrivi il nome)
             </label>
-            <select
-              value={selectedPersonId}
-              onChange={(e) => handlePersonChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                borderRadius: '12px',
-                border: '1.5px solid #cbd5e1',
-                fontSize: '15px',
-                fontWeight: 600,
-                color: '#1e293b',
-                outline: 'none',
-                backgroundColor: '#f8fafc'
-              }}
-            >
-              {ALL_PEOPLE.map((p: Person) => {
-                const isConfirmed = event.rsvps && event.rsvps[p.id]?.status === 'yes';
-                const isPartial = event.rsvps && event.rsvps[p.id]?.status === 'partial';
-                const isDeclined = event.rsvps && event.rsvps[p.id]?.status === 'no';
-                const suffix = isConfirmed ? ' (✅ Partecipa)' : isPartial ? ' (✨ Parziale)' : isDeclined ? ' (❌ Non viene)' : '';
-                return (
-                  <option key={p.id} value={p.id}>
-                    {p.name} {suffix}
-                  </option>
-                );
-              })}
-            </select>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onFocus={() => setIsDropdownOpen(true)}
+                placeholder="Scrivi il tuo nome (es. Stefano, Elena, Luca...)"
+                style={{
+                  width: '100%',
+                  padding: '12px 14px 12px 40px',
+                  borderRadius: '12px',
+                  border: '1.5px solid #6366f1',
+                  fontSize: '15px',
+                  fontWeight: 700,
+                  color: '#1e293b',
+                  outline: 'none',
+                  backgroundColor: '#ffffff',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <Search
+                size={18}
+                color="#6366f1"
+                style={{ position: 'absolute', left: '14px', top: '14px' }}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setIsDropdownOpen(true);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '12px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: '2px'
+                  }}
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Dropdown / Suggerimenti Autocompletati */}
+            {isDropdownOpen && filteredPeople.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  backgroundColor: '#ffffff',
+                  borderRadius: '12px',
+                  border: '1.5px solid #cbd5e1',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+                  zIndex: 50,
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  marginTop: '4px'
+                }}
+              >
+                {filteredPeople.map((person) => {
+                  const isSelected = selectedPersonId === person.id;
+                  const personRsvp = event.rsvps ? event.rsvps[person.id] : null;
+                  return (
+                    <div
+                      key={person.id}
+                      onClick={() => handleSelectPerson(person)}
+                      style={{
+                        padding: '10px 14px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        backgroundColor: isSelected ? '#eef2ff' : 'transparent',
+                        borderBottom: '1px solid #f1f5f9'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: isSelected ? 800 : 600, color: isSelected ? '#4338ca' : '#1e293b', fontSize: '14px' }}>
+                          {person.name}
+                        </span>
+                      </div>
+                      {personRsvp && (
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: personRsvp.status === 'yes' ? '#059669' : personRsvp.status === 'partial' ? '#4f46e5' : '#dc2626' }}>
+                          {personRsvp.status === 'yes' ? '✅ Partecipa' : personRsvp.status === 'partial' ? '✨ Parziale' : '❌ Non presente'}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Status Selection */}

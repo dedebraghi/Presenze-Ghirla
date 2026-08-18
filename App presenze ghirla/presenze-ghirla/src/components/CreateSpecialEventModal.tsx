@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ALL_PEOPLE, type Person } from '../data/familyData';
+import { FAMILY_GROUPS } from '../data/familyData';
 import { DEFAULT_EVENT_SLOTS, type CustomEvent, type EventSlot } from '../data/customEventsData';
 import { getLocalDateString } from '../utils/dateUtils';
 import {
@@ -260,75 +260,72 @@ export const CreateSpecialEventModal: React.FC<CreateSpecialEventModalProps> = (
 
         {/* Content Body */}
         <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
-          {/* STEP 1: Chi propone l'evento */}
+          {/* STEP 1: Chi propone l'evento (divisi per famiglia) */}
           {step === 1 && (
             <div>
               <div style={{ fontSize: '18px', fontWeight: 800, color: '#1e293b', marginBottom: '6px' }}>
                 👤 Chi organizza o propone questo evento?
               </div>
-              <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '20px' }}>
-                Seleziona il tuo nome o quello dell'organizzatore principale.
+              <div style={{ fontSize: '14px', color: '#64748b', marginBottom: '18px' }}>
+                Seleziona il tuo nome o quello dell'organizzatore principale (divisi per famiglia).
               </div>
 
               <div
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
-                  gap: '10px',
-                  maxHeight: '340px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  maxHeight: '380px',
                   overflowY: 'auto',
                   paddingRight: '4px'
                 }}
               >
-                {ALL_PEOPLE.map((person: Person) => {
-                  const isSelected = creatorId === person.id;
-                  return (
-                    <button
-                      key={person.id}
-                      type="button"
-                      onClick={() => setCreatorId(person.id)}
-                      style={{
-                        padding: '12px 8px',
-                        borderRadius: '16px',
-                        border: isSelected ? '2px solid #6366f1' : '1.5px solid #e2e8f0',
-                        backgroundColor: isSelected ? '#eef2ff' : '#f8fafc',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '8px',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '40px',
-                          height: '40px',
-                          borderRadius: '50%',
-                          backgroundColor: isSelected ? '#6366f1' : '#cbd5e1',
-                          color: '#ffffff',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 800,
-                          fontSize: '16px'
-                        }}
-                      >
-                        {person.name.charAt(0)}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '13px',
-                          fontWeight: isSelected ? 800 : 600,
-                          color: isSelected ? '#4338ca' : '#334155',
-                          textAlign: 'center'
-                        }}
-                      >
-                        {person.name}
-                      </span>
-                    </button>
-                  );
-                })}
+                {FAMILY_GROUPS.map((group) => (
+                  <div
+                    key={group.id}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: '16px',
+                      padding: '12px 14px',
+                      border: '1.5px solid #e2e8f0',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.02)'
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, color: group.badgeColor, fontSize: '15px', marginBottom: '8px' }}>
+                      {group.name}
+                    </div>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {group.members.map((person) => {
+                        const isSelected = creatorId === person.id;
+                        return (
+                          <button
+                            key={person.id}
+                            type="button"
+                            onClick={() => setCreatorId(person.id)}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: '12px',
+                              border: isSelected ? `2px solid ${group.badgeColor}` : '1.5px solid #cbd5e1',
+                              backgroundColor: isSelected ? group.badgeColor : '#f8fafc',
+                              color: isSelected ? '#ffffff' : '#334155',
+                              cursor: 'pointer',
+                              fontWeight: isSelected ? 800 : 600,
+                              fontSize: '14px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            {isSelected && <Check size={16} />}
+                            {person.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
