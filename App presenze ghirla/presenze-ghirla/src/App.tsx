@@ -5,6 +5,7 @@ import { QuickAddModal } from './components/QuickAddModal';
 import { DayDetailModal } from './components/DayDetailModal';
 import { AddGuestModal } from './components/AddGuestModal';
 import { FunnyStatsModal } from './components/FunnyStatsModal';
+import { SpecialOccasionBanner } from './components/SpecialOccasionBanner';
 import {
   Plus,
   Users,
@@ -412,6 +413,7 @@ export const App: React.FC = () => {
       </header>
 
       <main style={{ maxWidth: '1100px', margin: '24px auto', padding: '0 16px' }}>
+        <SpecialOccasionBanner onOpenDateDetail={(dateStr) => setSelectedDayDetail(dateStr)} />
 
         <section style={{ marginBottom: '36px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
