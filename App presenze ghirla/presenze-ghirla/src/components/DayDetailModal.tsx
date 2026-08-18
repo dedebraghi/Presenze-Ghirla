@@ -1,5 +1,6 @@
 import type { PresenceEntry, Person } from '../data/familyData';
 import { FAMILY_GROUPS, ALL_PEOPLE, getPersonById } from '../data/familyData';
+import { getOccasionsForDate } from '../data/specialOccasions';
 import { Sun, Moon, Bed, Trash2 } from 'lucide-react';
 
 interface DayDetailModalProps {
@@ -20,6 +21,8 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
   onDeleteGuest
 }) => {
   if (!isOpen) return null;
+
+  const occasions = getOccasionsForDate(dateStr);
 
   const handleDeleteGuest = (personId: string, personName: string) => {
     const cleanName = personName.replace(/\s*\(Ospite\)$/i, '').trim();
@@ -47,7 +50,22 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
     }
   };
 
-  const dateObj = new Date(dateStr);
+  const getEntryWithDefault = (personId: string): PresenceEntry => {
+    const key = `${dateStr}_${personId}`;
+    if (presences[key]) {
+      return presences[key];
+    }
+    const isDefaultAlwaysPresent = personId === 'stefano' || personId === 'elena';
+    return {
+      date: dateStr,
+      personId,
+      lunch: isDefaultAlwaysPresent,
+      dinner: isDefaultAlwaysPresent,
+      overnight: isDefaultAlwaysPresent
+    };
+  };
+
+  const dateObj = new Date(dateStr + 'T12:00:00');
   const formattedDateStr = dateObj.toLocaleDateString('it-IT', {
     weekday: 'long',
     day: 'numeric',
@@ -55,37 +73,31 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
     year: 'numeric'
   });
 
-  const staticPresences = ALL_PEOPLE.map(person => {
-    const key = `${dateStr}_${person.id}`;
-    const isDefaultAlwaysPresent = person.id === 'stefano' || person.id === 'elena';
-    const entry = presences[key] || {
-      date: dateStr,
-      personId: person.id,
-      lunch: isDefaultAlwaysPresent,
-      dinner: isDefaultAlwaysPresent,
-      overnight: isDefaultAlwaysPresent
-    };
-    return { person, entry };
+  const dayPresences: { person: Person; entry: PresenceEntry }[] = [];
+
+  ALL_PEOPLE.forEach(p => {
+    dayPresences.push({
+      person: p,
+      entry: getEntryWithDefault(p.id)
+    });
   });
 
   const datePrefix = `${dateStr}_`;
-  const guestPresences: { person: Person; entry: PresenceEntry }[] = [];
   Object.keys(presences).forEach(key => {
     if (key.startsWith(datePrefix)) {
       const personId = key.substring(datePrefix.length);
       if (personId.startsWith('guest_')) {
-        const entry = presences[key];
-        if (entry) {
-          const person = getPersonById(personId);
-          guestPresences.push({ person, entry });
+        const guestEntry = presences[key];
+        if (guestEntry && (guestEntry.lunch || guestEntry.dinner || guestEntry.overnight)) {
+          dayPresences.push({
+            person: getPersonById(personId),
+            entry: guestEntry
+          });
         }
       }
     }
   });
 
-  const dayPresences = [...staticPresences, ...guestPresences];
-
-  // Per il conteggio totale delle teste dei pasti nella modale di dettaglio, deduplica gli ospiti con lo stesso nome
   const deduplicatedDayPresencesForTotals: { person: Person; entry: PresenceEntry }[] = [];
   const guestTotalsMap = new Map<string, { person: Person; entry: PresenceEntry }>();
 
@@ -144,9 +156,31 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
         </button>
 
         <div style={{ marginBottom: '20px', paddingRight: '45px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#1e3a8a', textTransform: 'capitalize', lineHeight: '1.2' }}>
-            📆 {formattedDateStr}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#1e3a8a', textTransform: 'capitalize', lineHeight: '1.2', margin: 0 }}>
+              📆 {formattedDateStr}
+            </h2>
+            {occasions.map(occ => (
+              <span
+                key={occ.title}
+                style={{
+                  backgroundColor: occ.type === 'birthday' ? '#fdf2f8' : occ.type === 'anniversary' ? '#fef3c7' : '#ecfdf5',
+                  color: occ.type === 'birthday' ? '#db2777' : occ.type === 'anniversary' ? '#b45309' : '#047857',
+                  border: `1px solid ${occ.type === 'birthday' ? '#fbcfe8' : occ.type === 'anniversary' ? '#fde68a' : '#a7f3d0'}`,
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  padding: '4px 10px',
+                  borderRadius: '12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+                }}
+              >
+                {occ.type === 'birthday' ? '🎂' : occ.type === 'anniversary' ? '💍' : '😇'} {occ.title} {occ.description ? `(${occ.description})` : ''}
+              </span>
+            ))}
+          </div>
           <p style={{ color: '#64748b', fontSize: '14px', marginTop: '4px' }}>
             Presenze e pasti dettagliati della giornata a Ghirla
           </p>

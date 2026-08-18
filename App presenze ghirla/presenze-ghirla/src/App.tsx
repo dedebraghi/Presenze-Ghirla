@@ -25,6 +25,7 @@ import {
 } from './utils/presenceStorage';
 import { supabase } from './utils/supabaseClient';
 import { getLocalDateString } from './utils/dateUtils';
+import { getOccasionsForDate } from './data/specialOccasions';
 
 export const App: React.FC = () => {
   const [presences, setPresences] = useState<Record<string, PresenceEntry>>(() => {
@@ -439,6 +440,8 @@ export const App: React.FC = () => {
               const countDinner = dayEntries.filter((i: { entry: PresenceEntry }) => i.entry.dinner).length;
               const countOvernight = dayEntries.filter((i: { entry: PresenceEntry }) => i.entry.overnight).length;
 
+              const occasions = getOccasionsForDate(dateStr);
+
               return (
                 <div
                   key={dateStr}
@@ -470,8 +473,32 @@ export const App: React.FC = () => {
                     </span>
                   )}
 
-                  <div style={{ fontWeight: 800, fontSize: '19px', color: '#1e293b', textTransform: 'capitalize', marginBottom: '12px' }}>
-                    {dayName}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+                    <div style={{ fontWeight: 800, fontSize: '19px', color: '#1e293b', textTransform: 'capitalize' }}>
+                      {dayName}
+                    </div>
+
+                    {occasions.map(occ => (
+                      <span
+                        key={occ.title}
+                        title={occ.description || occ.title}
+                        style={{
+                          backgroundColor: occ.type === 'birthday' ? '#fdf2f8' : occ.type === 'anniversary' ? '#fef3c7' : '#ecfdf5',
+                          color: occ.type === 'birthday' ? '#db2777' : occ.type === 'anniversary' ? '#b45309' : '#047857',
+                          border: `1px solid ${occ.type === 'birthday' ? '#fbcfe8' : occ.type === 'anniversary' ? '#fde68a' : '#a7f3d0'}`,
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '10px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                        }}
+                      >
+                        {occ.type === 'birthday' ? '🎂' : occ.type === 'anniversary' ? '💍' : '😇'} {occ.title}
+                      </span>
+                    ))}
                   </div>
 
                   <div style={{
