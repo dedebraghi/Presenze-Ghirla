@@ -435,8 +435,8 @@ export const CustomEventBanner: React.FC<CustomEventBannerProps> = ({
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {partialList.map((item, idx) => {
-                        const slotLabels = item.slots
-                          .map(sid => event.slots.find(s => s.id === sid)?.label)
+                        const slotLabels = (item.slots || [])
+                          .map(sid => (event.slots || []).find(s => s.id === sid)?.label)
                           .filter(Boolean)
                           .join(', ');
 

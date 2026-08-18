@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FAMILY_GROUPS } from '../data/familyData';
 import { DEFAULT_EVENT_SLOTS, type CustomEvent, type EventSlot } from '../data/customEventsData';
 import { getLocalDateString } from '../utils/dateUtils';
@@ -60,6 +60,31 @@ export const CreateSpecialEventModal: React.FC<CreateSpecialEventModalProps> = (
   const [customSlotLabel, setCustomSlotLabel] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setCreatorId(initialEvent?.creatorId || 'stefano');
+      setTitle(initialEvent?.title || '');
+      setDescription(initialEvent?.description || '');
+      setLocation(initialEvent?.location || '');
+      setExternalGuests(initialEvent?.externalGuests || '');
+      const isSingle = initialEvent ? initialEvent.startDate === initialEvent.endDate : true;
+      setIsSingleDay(isSingle);
+      setStartDate(initialEvent?.startDate || todayStr);
+      setEndDate(initialEvent?.endDate || todayStr);
+      if (initialEvent && initialEvent.slots && initialEvent.slots.length > 0) {
+        setSelectedSlots(initialEvent.slots);
+      } else {
+        setSelectedSlots([
+          DEFAULT_EVENT_SLOTS[0], // Evento Principale
+          DEFAULT_EVENT_SLOTS[1], // Pranzo
+          DEFAULT_EVENT_SLOTS[3], // Cena
+        ]);
+      }
+      setCustomSlotLabel('');
+    }
+  }, [isOpen, initialEvent]);
+
   if (!isOpen) return null;
 
   const handleNext = () => {
@@ -75,7 +100,7 @@ export const CreateSpecialEventModal: React.FC<CreateSpecialEventModalProps> = (
       alert('Inserisci una data di inizio valida.');
       return;
     }
-    if (step === 6 && selectedSlots.length === 0) {
+    if (step === 6 && selectedSlots.length === 0 && !customSlotLabel.trim()) {
       alert('Seleziona almeno un momento/attività per l’evento.');
       return;
     }
@@ -124,6 +149,22 @@ export const CreateSpecialEventModal: React.FC<CreateSpecialEventModalProps> = (
     setIsSaving(true);
     const finalEndDate = isSingleDay ? startDate : (endDate || startDate);
 
+    let finalSlots = [...selectedSlots];
+    if (customSlotLabel.trim()) {
+      const extraSlot: EventSlot = {
+        id: `custom_${Date.now()}`,
+        label: customSlotLabel.trim(),
+        icon: '✨'
+      };
+      finalSlots.push(extraSlot);
+    }
+
+    if (finalSlots.length === 0) {
+      alert('Seleziona almeno un momento/attività per l’evento.');
+      setIsSaving(false);
+      return;
+    }
+
     const newEvent: CustomEvent = {
       id: initialEvent?.id || `event_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       title: title.trim(),
@@ -133,7 +174,7 @@ export const CreateSpecialEventModal: React.FC<CreateSpecialEventModalProps> = (
       externalGuests: externalGuests.trim() || undefined,
       startDate,
       endDate: finalEndDate,
-      slots: selectedSlots,
+      slots: finalSlots,
       targetPeople: ['all'],
       rsvps: initialEvent?.rsvps || {},
       createdAt: initialEvent?.createdAt || new Date().toISOString(),
@@ -677,7 +718,7 @@ export const CreateSpecialEventModal: React.FC<CreateSpecialEventModalProps> = (
 
                 {/* Custom slots added by user */}
                 {selectedSlots
-                  .filter(s => s.id.startsWith('custom_'))
+                  .filter(s => !DEFAULT_EVENT_SLOTS.some(d => d.id === s.id))
                   .map((slot) => (
                     <div
                       key={slot.id}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ALL_PEOPLE, type Person } from '../data/familyData';
 import type { CustomEvent, EventRsvp } from '../data/customEventsData';
 import { X, Check, Search } from 'lucide-react';
@@ -28,10 +28,25 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
 
   const [status, setStatus] = useState<'yes' | 'partial' | 'no'>(currentRsvp?.status || 'yes');
   const [selectedSlots, setSelectedSlots] = useState<string[]>(
-    currentRsvp?.selectedSlots || event.slots.map(s => s.id)
+    currentRsvp?.selectedSlots || (event.slots || []).map(s => s.id)
   );
   const [notes, setNotes] = useState<string>(currentRsvp?.notes || '');
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (event) {
+      const rsvp = event.rsvps ? event.rsvps[selectedPersonId] : null;
+      if (rsvp) {
+        setStatus(rsvp.status);
+        setSelectedSlots(rsvp.selectedSlots || (event.slots || []).map(s => s.id));
+        setNotes(rsvp.notes || '');
+      } else {
+        setStatus('yes');
+        setSelectedSlots((event.slots || []).map(s => s.id));
+        setNotes('');
+      }
+    }
+  }, [event, selectedPersonId]);
 
   const handleSelectPerson = (person: Person) => {
     setSelectedPersonId(person.id);
@@ -41,11 +56,11 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
     const rsvp = event.rsvps ? event.rsvps[person.id] : null;
     if (rsvp) {
       setStatus(rsvp.status);
-      setSelectedSlots(rsvp.selectedSlots);
+      setSelectedSlots(rsvp.selectedSlots || (event.slots || []).map(s => s.id));
       setNotes(rsvp.notes || '');
     } else {
       setStatus('yes');
-      setSelectedSlots(event.slots.map(s => s.id));
+      setSelectedSlots((event.slots || []).map(s => s.id));
       setNotes('');
     }
   };
@@ -63,11 +78,11 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
       const rsvp = event.rsvps ? event.rsvps[exactMatch.id] : null;
       if (rsvp) {
         setStatus(rsvp.status);
-        setSelectedSlots(rsvp.selectedSlots);
+        setSelectedSlots(rsvp.selectedSlots || (event.slots || []).map(s => s.id));
         setNotes(rsvp.notes || '');
       } else {
         setStatus('yes');
-        setSelectedSlots(event.slots.map(s => s.id));
+        setSelectedSlots((event.slots || []).map(s => s.id));
         setNotes('');
       }
     }
@@ -93,7 +108,7 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
     const rsvp: EventRsvp = {
       personId: selectedPersonId,
       status,
-      selectedSlots: status === 'yes' ? event.slots.map(s => s.id) : (status === 'no' ? [] : selectedSlots),
+      selectedSlots: status === 'yes' ? (event.slots || []).map(s => s.id) : (status === 'no' ? [] : selectedSlots),
       notes: notes.trim() || undefined,
       updatedAt: new Date().toISOString()
     };
@@ -401,7 +416,7 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
                 Spunta i momenti in cui sarai presente:
               </label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {event.slots.map((slot) => {
+                {(event.slots || []).map((slot) => {
                   const isChecked = selectedSlots.includes(slot.id);
                   return (
                     <div
