@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { PresenceEntry, Person } from '../data/familyData';
-import { getPersonById, FAMILY_GROUPS, ALL_PEOPLE } from '../data/familyData';
+import { getPersonById, FAMILY_GROUPS, ALL_PEOPLE, comparePeopleByAge } from '../data/familyData';
 import { getLocalDateString } from '../utils/dateUtils';
 import confetti from 'canvas-confetti';
 import {
@@ -264,27 +264,41 @@ export const FunnyStatsModal: React.FC<FunnyStatsModalProps> = ({
       });
     });
 
-    // 1. Classifiche Podio Forchetta d'Oro & Pigiama Party
+    // 1. Classifiche Podio Forchetta d'Oro & Pigiama Party (con tie-breaker per età: più giovane avanti)
     const forkLeaderboard: ForkItem[] = Object.entries(mealsByPerson)
       .map(([pId, data]) => ({ person: getPersonById(pId), count: data.total, lunch: data.lunch, dinner: data.dinner }))
       .filter(item => item.count > 0)
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return comparePeopleByAge(a.person, b.person);
+      });
 
     const pajamaLeaderboard: PajamaItem[] = Object.entries(overnightByPerson)
       .map(([pId, count]) => ({ person: getPersonById(pId), count }))
       .filter(item => item.count > 0)
-      .sort((a, b) => b.count - a.count);
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return comparePeopleByAge(a.person, b.person);
+      });
 
-    // 2. Menzioni d'Onore
+    // 2. Menzioni d'Onore (con tie-breaker per età: più giovane avanti)
     const serialLuncher: MealDetailItem | null = Object.entries(mealsByPerson)
       .map(([pId, data]) => ({ person: getPersonById(pId), lunch: data.lunch, total: data.total }))
       .filter(item => (item.lunch || 0) > 0)
-      .sort((a, b) => (b.lunch || 0) - (a.lunch || 0))[0] || null;
+      .sort((a, b) => {
+        const diff = (b.lunch || 0) - (a.lunch || 0);
+        if (diff !== 0) return diff;
+        return comparePeopleByAge(a.person, b.person);
+      })[0] || null;
 
     const nightCreature: MealDetailItem | null = Object.entries(mealsByPerson)
       .map(([pId, data]) => ({ person: getPersonById(pId), dinner: data.dinner, total: data.total }))
       .filter(item => (item.dinner || 0) > 0)
-      .sort((a, b) => (b.dinner || 0) - (a.dinner || 0))[0] || null;
+      .sort((a, b) => {
+        const diff = (b.dinner || 0) - (a.dinner || 0);
+        if (diff !== 0) return diff;
+        return comparePeopleByAge(a.person, b.person);
+      })[0] || null;
 
     const touchAndGo: TouchAndGoItem | null = Object.entries(mealsByPerson)
       .map(([pId, data]) => ({
@@ -293,7 +307,11 @@ export const FunnyStatsModal: React.FC<FunnyStatsModalProps> = ({
         nights: overnightByPerson[pId] || 0
       }))
       .filter(item => item.meals > 0 && item.nights === 0)
-      .sort((a, b) => b.meals - a.meals)[0] || null;
+      .sort((a, b) => {
+        const diff = b.meals - a.meals;
+        if (diff !== 0) return diff;
+        return comparePeopleByAge(a.person, b.person);
+      })[0] || null;
 
     let marathonWinner: MarathonItem | null = null;
     Object.entries(activeDatesByPerson).forEach(([pId, dateSet]) => {
@@ -320,8 +338,15 @@ export const FunnyStatsModal: React.FC<FunnyStatsModalProps> = ({
         prevDate = d;
       });
 
-      if (maxStreak > 0 && (!marathonWinner || maxStreak > marathonWinner.streak)) {
-        marathonWinner = { person: getPersonById(pId), streak: maxStreak };
+      if (maxStreak > 0) {
+        const person = getPersonById(pId);
+        if (
+          !marathonWinner ||
+          maxStreak > marathonWinner.streak ||
+          (maxStreak === marathonWinner.streak && comparePeopleByAge(person, marathonWinner.person) < 0)
+        ) {
+          marathonWinner = { person, streak: maxStreak };
+        }
       }
     });
 
@@ -336,7 +361,10 @@ export const FunnyStatsModal: React.FC<FunnyStatsModalProps> = ({
     const guestOfHonor: GuestOfHonorItem | null = Object.entries(guestPresencesByPerson)
       .map(([pId, count]) => ({ person: getPersonById(pId), count }))
       .filter(item => item.count > 0)
-      .sort((a, b) => b.count - a.count)[0] || null;
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return comparePeopleByAge(a.person, b.person);
+      })[0] || null;
 
     // 3. Record Affluenza Retroattivo (confronta tutte le date attive)
     let recordDate: string | null = null;

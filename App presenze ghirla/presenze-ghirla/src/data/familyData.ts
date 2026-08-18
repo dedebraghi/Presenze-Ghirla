@@ -5,6 +5,7 @@ export interface Person {
   isHost?: boolean;
   isGuest?: boolean;
   avatarBg?: string;
+  birthDate?: string; // YYYY-MM-DD
 }
 
 export interface FamilyGroup {
@@ -29,8 +30,8 @@ export const FAMILY_GROUPS: FamilyGroup[] = [
     name: 'Stefano & Elena',
     badgeColor: '#1e3a8a',
     members: [
-      { id: 'stefano', name: 'Stefano', familyId: 'stefano-elena', isHost: true, avatarBg: '#1e40af' },
-      { id: 'elena', name: 'Elena', familyId: 'stefano-elena', isHost: true, avatarBg: '#1e40af' }
+      { id: 'stefano', name: 'Stefano', familyId: 'stefano-elena', isHost: true, avatarBg: '#1e40af', birthDate: '1960-01-08' },
+      { id: 'elena', name: 'Elena', familyId: 'stefano-elena', isHost: true, avatarBg: '#1e40af', birthDate: '1962-09-12' }
     ]
   },
   {
@@ -38,8 +39,8 @@ export const FAMILY_GROUPS: FamilyGroup[] = [
     name: 'Luigi & Elisabetta',
     badgeColor: '#047857',
     members: [
-      { id: 'luigi', name: 'Luigi', familyId: 'luigi-eli', avatarBg: '#059669' },
-      { id: 'elisabetta', name: 'Elisabetta', familyId: 'luigi-eli', avatarBg: '#059669' }
+      { id: 'luigi', name: 'Luigi', familyId: 'luigi-eli', avatarBg: '#059669', birthDate: '2001-01-19' },
+      { id: 'elisabetta', name: 'Elisabetta', familyId: 'luigi-eli', avatarBg: '#059669', birthDate: '2001-06-11' }
     ]
   },
   {
@@ -47,7 +48,7 @@ export const FAMILY_GROUPS: FamilyGroup[] = [
     name: 'Luca & Eleonora',
     badgeColor: '#b45309',
     members: [
-      { id: 'luca', name: 'Luca', familyId: 'luca-eleonora', avatarBg: '#d97706' },
+      { id: 'luca', name: 'Luca', familyId: 'luca-eleonora', avatarBg: '#d97706', birthDate: '1995-07-09' },
       { id: 'eleonora', name: 'Eleonora', familyId: 'luca-eleonora', avatarBg: '#d97706' }
     ]
   },
@@ -56,8 +57,8 @@ export const FAMILY_GROUPS: FamilyGroup[] = [
     name: 'Cecilia & Davide',
     badgeColor: '#6b21a8',
     members: [
-      { id: 'cecilia', name: 'Cecilia', familyId: 'cecilia-davide', avatarBg: '#7e22ce' },
-      { id: 'davide', name: 'Davide', familyId: 'cecilia-davide', avatarBg: '#7e22ce' }
+      { id: 'cecilia', name: 'Cecilia', familyId: 'cecilia-davide', avatarBg: '#7e22ce', birthDate: '1993-11-22' },
+      { id: 'davide', name: 'Davide', familyId: 'cecilia-davide', avatarBg: '#7e22ce', birthDate: '1995-03-01' }
     ]
   },
   {
@@ -65,10 +66,10 @@ export const FAMILY_GROUPS: FamilyGroup[] = [
     name: 'Giacomo & Maria O.',
     badgeColor: '#c2410c',
     members: [
-      { id: 'giacomo', name: 'Giacomo', familyId: 'giacomo-maria', avatarBg: '#ea580c' },
-      { id: 'maria_o', name: 'Maria O.', familyId: 'giacomo-maria', avatarBg: '#ea580c' },
-      { id: 'peppo', name: 'Peppo', familyId: 'giacomo-maria', avatarBg: '#f97316' },
-      { id: 'marghe', name: 'Marghe', familyId: 'giacomo-maria', avatarBg: '#f97316' },
+      { id: 'giacomo', name: 'Giacomo', familyId: 'giacomo-maria', avatarBg: '#ea580c', birthDate: '1989-05-18' },
+      { id: 'maria_o', name: 'Maria O.', familyId: 'giacomo-maria', avatarBg: '#ea580c', birthDate: '1991-08-12' },
+      { id: 'peppo', name: 'Peppo', familyId: 'giacomo-maria', avatarBg: '#f97316', birthDate: '2023-04-03' },
+      { id: 'marghe', name: 'Marghe', familyId: 'giacomo-maria', avatarBg: '#f97316', birthDate: '2020-09-06' },
       { id: 'fiammi', name: 'Fiammi', familyId: 'giacomo-maria', avatarBg: '#f97316' },
       { id: 'michi', name: 'Michi', familyId: 'giacomo-maria', avatarBg: '#f97316' }
     ]
@@ -78,10 +79,10 @@ export const FAMILY_GROUPS: FamilyGroup[] = [
     name: 'Pietro & Maria R.',
     badgeColor: '#0f766e',
     members: [
-      { id: 'pietro', name: 'Pietro', familyId: 'pietro-maria', avatarBg: '#14b8a6' },
-      { id: 'maria_r', name: 'Maria R.', familyId: 'pietro-maria', avatarBg: '#14b8a6' },
-      { id: 'monicotti', name: 'Monicotti', familyId: 'pietro-maria', avatarBg: '#2dd4bf' },
-      { id: 'isa', name: 'Isa', familyId: 'pietro-maria', avatarBg: '#2dd4bf' }
+      { id: 'pietro', name: 'Pietro', familyId: 'pietro-maria', avatarBg: '#14b8a6', birthDate: '1987-08-06' },
+      { id: 'maria_r', name: 'Maria R.', familyId: 'pietro-maria', avatarBg: '#14b8a6', birthDate: '1990-02-16' },
+      { id: 'monicotti', name: 'Monicotti', familyId: 'pietro-maria', avatarBg: '#2dd4bf', birthDate: '2025-01-20' },
+      { id: 'isa', name: 'Isa', familyId: 'pietro-maria', avatarBg: '#2dd4bf', birthDate: '2022-03-28' }
     ]
   },
   {
@@ -89,8 +90,8 @@ export const FAMILY_GROUPS: FamilyGroup[] = [
     name: 'Caterina & Mario',
     badgeColor: '#be185d',
     members: [
-      { id: 'caterina', name: 'Caterina', familyId: 'caterina-mario', avatarBg: '#e11d48' },
-      { id: 'mario', name: 'Mario', familyId: 'caterina-mario', avatarBg: '#e11d48' }
+      { id: 'caterina', name: 'Caterina', familyId: 'caterina-mario', avatarBg: '#e11d48', birthDate: '1991-01-31' },
+      { id: 'mario', name: 'Mario', familyId: 'caterina-mario', avatarBg: '#e11d48', birthDate: '1995-05-12' }
     ]
   }
 ];
@@ -137,5 +138,26 @@ export function getPersonById(personId: string): Person {
     avatarBg: '#ec4899',
     isGuest: true
   };
+}
+
+/**
+ * Confronta due persone per età (tie-breaker per parimerito nelle statistiche).
+ * Chi è più giovane (nato più di recente, data più avanti nel tempo) viene prima (ritorna valore negativo).
+ */
+export function comparePeopleByAge(personA: Person, personB: Person): number {
+  const dateA = personA.birthDate;
+  const dateB = personB.birthDate;
+
+  if (dateA && dateB) {
+    if (dateA > dateB) return -1; // personA è più giovane -> prima
+    if (dateA < dateB) return 1;  // personB è più giovane -> prima
+  } else if (dateA && !dateB) {
+    return -1; // Chi ha data nota precede chi non ce l'ha
+  } else if (!dateA && dateB) {
+    return 1;
+  }
+
+  // Fallback ordine alfabetico per nome
+  return personA.name.localeCompare(personB.name);
 }
 
