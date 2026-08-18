@@ -14,7 +14,7 @@ import {
   fetchCustomEventsFromCloud,
   saveCustomEventToCloud,
   deleteCustomEventFromCloud,
-  updateEventRsvpInCloud,
+  updateMultipleEventRsvpsInCloud,
   getLocalCustomEvents
 } from './utils/customEventsStorage';
 import {
@@ -244,8 +244,8 @@ export const App: React.FC = () => {
     setCustomEvents(updated);
   };
 
-  const handleSaveEventRsvp = async (eventId: string, rsvp: EventRsvp) => {
-    const updated = await updateEventRsvpInCloud(eventId, rsvp);
+  const handleSaveEventRsvps = async (eventId: string, rsvps: EventRsvp[]) => {
+    const updated = await updateMultipleEventRsvpsInCloud(eventId, rsvps);
     setCustomEvents(updated);
     setRsvpEvent(null);
   };
@@ -892,7 +892,7 @@ export const App: React.FC = () => {
         isOpen={!!rsvpEvent}
         event={rsvpEvent}
         onClose={() => setRsvpEvent(null)}
-        onSaveRsvp={handleSaveEventRsvp}
+        onSaveRsvps={handleSaveEventRsvps}
       />
 
     </div>

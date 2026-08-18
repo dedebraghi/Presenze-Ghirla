@@ -1,97 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import { ALL_PEOPLE, type Person } from '../data/familyData';
+import { FAMILY_GROUPS } from '../data/familyData';
 import type { CustomEvent, EventRsvp } from '../data/customEventsData';
-import { X, Check, Search } from 'lucide-react';
+import { X, Check, Users, Plus } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 interface EventRsvpModalProps {
   isOpen: boolean;
   event: CustomEvent | null;
   onClose: () => void;
-  onSaveRsvp: (eventId: string, rsvp: EventRsvp) => Promise<void>;
+  onSaveRsvps: (eventId: string, rsvps: EventRsvp[]) => Promise<void>;
 }
 
 export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
   isOpen,
   event,
   onClose,
-  onSaveRsvp
+  onSaveRsvps
 }) => {
-  if (!isOpen || !event) return null;
-
-  const [selectedPersonId, setSelectedPersonId] = useState<string>('stefano');
-  const [searchTerm, setSearchTerm] = useState<string>('Stefano');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  
-  // Load existing RSVP for selected person if present
-  const currentRsvp = event.rsvps ? event.rsvps[selectedPersonId] : null;
-
-  const [status, setStatus] = useState<'yes' | 'partial' | 'no'>(currentRsvp?.status || 'yes');
-  const [selectedSlots, setSelectedSlots] = useState<string[]>(
-    currentRsvp?.selectedSlots || (event.slots || []).map(s => s.id)
-  );
-  const [notes, setNotes] = useState<string>(currentRsvp?.notes || '');
+  const [selectedPersonIds, setSelectedPersonIds] = useState<string[]>([]);
+  const [status, setStatus] = useState<'yes' | 'partial' | 'no'>('yes');
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+  const [notes, setNotes] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (event) {
-      const rsvp = event.rsvps ? event.rsvps[selectedPersonId] : null;
-      if (rsvp) {
-        setStatus(rsvp.status);
-        setSelectedSlots(rsvp.selectedSlots || (event.slots || []).map(s => s.id));
-        setNotes(rsvp.notes || '');
-      } else {
-        setStatus('yes');
-        setSelectedSlots((event.slots || []).map(s => s.id));
-        setNotes('');
-      }
-    }
-  }, [event, selectedPersonId]);
-
-  const handleSelectPerson = (person: Person) => {
-    setSelectedPersonId(person.id);
-    setSearchTerm(person.name);
-    setIsDropdownOpen(false);
-
-    const rsvp = event.rsvps ? event.rsvps[person.id] : null;
-    if (rsvp) {
-      setStatus(rsvp.status);
-      setSelectedSlots(rsvp.selectedSlots || (event.slots || []).map(s => s.id));
-      setNotes(rsvp.notes || '');
-    } else {
+    if (isOpen && event) {
+      setSelectedPersonIds([]);
       setStatus('yes');
       setSelectedSlots((event.slots || []).map(s => s.id));
       setNotes('');
     }
+  }, [isOpen, event]);
+
+  if (!isOpen || !event) return null;
+
+  const togglePerson = (personId: string) => {
+    setSelectedPersonIds(prev =>
+      prev.includes(personId) ? prev.filter(id => id !== personId) : [...prev, personId]
+    );
   };
 
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-    setIsDropdownOpen(true);
-
-    // Auto-match if exact name is typed
-    const exactMatch = ALL_PEOPLE.find(
-      p => p.name.toLowerCase().trim() === value.toLowerCase().trim()
-    );
-    if (exactMatch) {
-      setSelectedPersonId(exactMatch.id);
-      const rsvp = event.rsvps ? event.rsvps[exactMatch.id] : null;
-      if (rsvp) {
-        setStatus(rsvp.status);
-        setSelectedSlots(rsvp.selectedSlots || (event.slots || []).map(s => s.id));
-        setNotes(rsvp.notes || '');
-      } else {
-        setStatus('yes');
-        setSelectedSlots((event.slots || []).map(s => s.id));
-        setNotes('');
-      }
+  const toggleFamilyGroup = (memberIds: string[]) => {
+    const allSelected = memberIds.every(id => selectedPersonIds.includes(id));
+    if (allSelected) {
+      setSelectedPersonIds(prev => prev.filter(id => !memberIds.includes(id)));
+    } else {
+      setSelectedPersonIds(prev => Array.from(new Set([...prev, ...memberIds])));
     }
   };
 
-  // Filter people based on search term
-  const filteredPeople = ALL_PEOPLE.filter(p =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase().trim())
-  );
+  const handleDeselectAll = () => {
+    setSelectedPersonIds([]);
+  };
 
   const handleToggleSlot = (slotId: string) => {
     if (selectedSlots.includes(slotId)) {
@@ -103,31 +63,47 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (selectedPersonIds.length === 0) {
+      alert('Seleziona almeno una persona o una famiglia per confermare la presenza.');
+      return;
+    }
+
+    if (status === 'partial' && selectedSlots.length === 0) {
+      alert('Seleziona almeno un momento in cui sarete presenti.');
+      return;
+    }
+
     setIsSaving(true);
 
-    const rsvp: EventRsvp = {
-      personId: selectedPersonId,
+    const now = new Date().toISOString();
+    const finalSlots = status === 'yes'
+      ? (event.slots || []).map(s => s.id)
+      : (status === 'no' ? [] : selectedSlots);
+
+    const rsvps: EventRsvp[] = selectedPersonIds.map(personId => ({
+      personId,
       status,
-      selectedSlots: status === 'yes' ? (event.slots || []).map(s => s.id) : (status === 'no' ? [] : selectedSlots),
+      selectedSlots: finalSlots,
       notes: notes.trim() || undefined,
-      updatedAt: new Date().toISOString()
-    };
+      updatedAt: now
+    }));
 
     try {
-      await onSaveRsvp(event.id, rsvp);
+      await onSaveRsvps(event.id, rsvps);
       if (status !== 'no') {
         try {
           confetti({
-            particleCount: 60,
-            spread: 60,
-            origin: { y: 0.5 }
+            particleCount: 70,
+            spread: 65,
+            origin: { y: 0.6 }
           });
         } catch {}
       }
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Errore durante il salvataggio della presenza.');
+      alert('Errore durante il salvataggio delle presenze.');
     } finally {
       setIsSaving(false);
     }
@@ -156,8 +132,8 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
           backgroundColor: '#ffffff',
           borderRadius: '24px',
           width: '100%',
-          maxWidth: '520px',
-          maxHeight: '90vh',
+          maxWidth: '620px',
+          maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
@@ -177,10 +153,10 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
           }}
         >
           <div>
-            <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.9 }}>
+            <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.6px', opacity: 0.9, fontWeight: 700 }}>
               Conferma Partecipazione
             </div>
-            <h2 style={{ fontSize: '18px', fontWeight: 800, margin: '2px 0 0 0' }}>
+            <h2 style={{ fontSize: '19px', fontWeight: 800, margin: '2px 0 0 0' }}>
               {event.title}
             </h2>
           </div>
@@ -204,122 +180,144 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Campo Libero con Autocompletamento per la Persona */}
-          <div style={{ position: 'relative' }}>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-              👤 Chi sta rispondendo? (Cerca o scrivi il nome)
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                onFocus={() => setIsDropdownOpen(true)}
-                placeholder="Scrivi il tuo nome (es. Stefano, Elena, Luca...)"
-                style={{
-                  width: '100%',
-                  padding: '12px 14px 12px 40px',
-                  borderRadius: '12px',
-                  border: '1.5px solid #6366f1',
-                  fontSize: '15px',
-                  fontWeight: 700,
-                  color: '#1e293b',
-                  outline: 'none',
-                  backgroundColor: '#ffffff',
-                  boxSizing: 'border-box'
-                }}
-              />
-              <Search
-                size={18}
-                color="#6366f1"
-                style={{ position: 'absolute', left: '14px', top: '14px' }}
-              />
-              {searchTerm && (
+        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* SEZIONE 1: Selezione Persone e Famiglie */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+              <label style={{ fontSize: '15px', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Users size={18} color="#4f46e5" />
+                <span>Chi risponde? ({selectedPersonIds.length} selezionat{selectedPersonIds.length === 1 ? 'o' : 'i'})</span>
+              </label>
+              {selectedPersonIds.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setIsDropdownOpen(true);
-                  }}
+                  onClick={handleDeselectAll}
                   style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '12px',
                     background: 'transparent',
                     border: 'none',
-                    color: '#94a3b8',
+                    color: '#ef4444',
+                    fontSize: '12px',
+                    fontWeight: 700,
                     cursor: 'pointer',
-                    padding: '2px'
+                    padding: '2px 6px'
                   }}
                 >
-                  <X size={16} />
+                  Deseleziona tutti
                 </button>
               )}
             </div>
 
-            {/* Dropdown / Suggerimenti Autocompletati */}
-            {isDropdownOpen && filteredPeople.length > 0 && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  backgroundColor: '#ffffff',
-                  borderRadius: '12px',
-                  border: '1.5px solid #cbd5e1',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                  zIndex: 50,
-                  maxHeight: '200px',
-                  overflowY: 'auto',
-                  marginTop: '4px'
-                }}
-              >
-                {filteredPeople.map((person) => {
-                  const isSelected = selectedPersonId === person.id;
-                  const personRsvp = event.rsvps ? event.rsvps[person.id] : null;
-                  return (
-                    <div
-                      key={person.id}
-                      onClick={() => handleSelectPerson(person)}
-                      style={{
-                        padding: '10px 14px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        backgroundColor: isSelected ? '#eef2ff' : 'transparent',
-                        borderBottom: '1px solid #f1f5f9'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontWeight: isSelected ? 800 : 600, color: isSelected ? '#4338ca' : '#1e293b', fontSize: '14px' }}>
-                          {person.name}
-                        </span>
-                      </div>
-                      {personRsvp && (
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: personRsvp.status === 'yes' ? '#059669' : personRsvp.status === 'partial' ? '#4f46e5' : '#dc2626' }}>
-                          {personRsvp.status === 'yes' ? '✅ Partecipa' : personRsvp.status === 'partial' ? '✨ Parziale' : '❌ Non presente'}
-                        </span>
-                      )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {FAMILY_GROUPS.map(group => {
+                const memberIds = group.members.map(m => m.id);
+                const isGroupAllSelected = memberIds.length > 0 && memberIds.every(id => selectedPersonIds.includes(id));
+
+                return (
+                  <div
+                    key={group.id}
+                    style={{
+                      backgroundColor: '#f8fafc',
+                      borderRadius: '16px',
+                      padding: '12px 14px',
+                      border: '1.5px solid #e2e8f0'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <span style={{ fontWeight: 800, color: group.badgeColor, fontSize: '15px' }}>
+                        {group.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleFamilyGroup(memberIds)}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '16px',
+                          backgroundColor: isGroupAllSelected ? group.badgeColor : '#e2e8f0',
+                          color: isGroupAllSelected ? '#ffffff' : '#475569',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {isGroupAllSelected ? <Check size={13} /> : <Plus size={13} />}
+                        {isGroupAllSelected ? 'Tutta la famiglia' : 'Seleziona Tutti'}
+                      </button>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {group.members.map(person => {
+                        const isSelected = selectedPersonIds.includes(person.id);
+                        const personRsvp = event.rsvps ? event.rsvps[person.id] : null;
+
+                        return (
+                          <button
+                            key={person.id}
+                            type="button"
+                            onClick={() => togglePerson(person.id)}
+                            style={{
+                              padding: '7px 12px',
+                              borderRadius: '12px',
+                              backgroundColor: isSelected ? group.badgeColor : '#ffffff',
+                              color: isSelected ? '#ffffff' : '#334155',
+                              fontWeight: isSelected ? 800 : 600,
+                              fontSize: '14px',
+                              border: isSelected ? `2px solid ${group.badgeColor}` : '1.5px solid #cbd5e1',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              cursor: 'pointer',
+                              boxShadow: isSelected ? '0 3px 8px rgba(0,0,0,0.12)' : 'none',
+                              transition: 'transform 0.1s ease, background 0.15s ease'
+                            }}
+                          >
+                            {isSelected && <Check size={14} />}
+                            <span>{person.name}</span>
+                            
+                            {/* Status Badge Indicatore se ha già risposto */}
+                            {personRsvp && (
+                              <span
+                                style={{
+                                  fontSize: '11px',
+                                  padding: '1px 5px',
+                                  borderRadius: '6px',
+                                  backgroundColor: isSelected
+                                    ? 'rgba(255, 255, 255, 0.25)'
+                                    : (personRsvp.status === 'yes' ? '#d1fae5' : personRsvp.status === 'partial' ? '#e0e7ff' : '#fee2e2'),
+                                  color: isSelected
+                                    ? '#ffffff'
+                                    : (personRsvp.status === 'yes' ? '#065f46' : personRsvp.status === 'partial' ? '#3730a3' : '#991b1b'),
+                                  fontWeight: 700
+                                }}
+                              >
+                                {personRsvp.status === 'yes' ? '✅ Tutto' : personRsvp.status === 'partial' ? '✨ Parziale' : '❌ No'}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Status Selection */}
+          {/* SEZIONE 2: Stato di Partecipazione (Applicato a tutti i selezionati) */}
           <div>
-            <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '8px' }}>
-              🎯 Sarai presente?
+            <label style={{ display: 'block', fontSize: '15px', fontWeight: 800, color: '#1e293b', marginBottom: '8px' }}>
+              🎯 Come parteciperanno i selezionati?
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div
                 onClick={() => {
                   setStatus('yes');
-                  setSelectedSlots(event.slots.map(s => s.id));
+                  setSelectedSlots((event.slots || []).map(s => s.id));
                 }}
                 style={{
                   padding: '12px 16px',
@@ -329,17 +327,18 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between'
+                  justifyContent: 'space-between',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '20px' }}>🎉</span>
                   <div>
                     <div style={{ fontWeight: 800, color: status === 'yes' ? '#065f46' : '#1e293b', fontSize: '15px' }}>
-                      Sì, partecipo a tutto l'evento!
+                      Sì, partecipano a tutto l'evento!
                     </div>
                     <div style={{ fontSize: '12px', color: '#64748b' }}>
-                      Presente a tutti i momenti e pasti previsti
+                      Presenti a tutti i momenti e pasti previsti
                     </div>
                   </div>
                 </div>
@@ -356,17 +355,18 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between'
+                  justifyContent: 'space-between',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '20px' }}>✨</span>
                   <div>
                     <div style={{ fontWeight: 800, color: status === 'partial' ? '#3730a3' : '#1e293b', fontSize: '15px' }}>
-                      Partecipo solo ad alcuni momenti
+                      Partecipano solo ad alcuni momenti
                     </div>
                     <div style={{ fontSize: '12px', color: '#64748b' }}>
-                      Scegli esattamente a cosa parteciperai
+                      Scegli esattamente a cosa parteciperanno
                     </div>
                   </div>
                 </div>
@@ -383,14 +383,15 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'space-between'
+                  justifyContent: 'space-between',
+                  transition: 'all 0.15s ease'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '20px' }}>❌</span>
                   <div>
                     <div style={{ fontWeight: 800, color: status === 'no' ? '#991b1b' : '#1e293b', fontSize: '15px' }}>
-                      Purtroppo non riesco a venire
+                      Purtroppo non possono venire
                     </div>
                     <div style={{ fontSize: '12px', color: '#64748b' }}>
                       Segna assenza per questo evento
@@ -402,7 +403,7 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
             </div>
           </div>
 
-          {/* Slots selection if status is 'partial' */}
+          {/* Momenti se presenza Parziale */}
           {status === 'partial' && (
             <div
               style={{
@@ -413,7 +414,7 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
               }}
             >
               <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: '#4338ca', marginBottom: '8px', textTransform: 'uppercase' }}>
-                Spunta i momenti in cui sarai presente:
+                Spunta i momenti in cui saranno presenti:
               </label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {(event.slots || []).map((slot) => {
@@ -461,14 +462,14 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
             </div>
           )}
 
-          {/* Notes */}
+          {/* Note */}
           <div>
             <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-              💬 Note personali per l'organizzatore (Facoltativo)
+              💬 Note per l'organizzatore (Facoltativo)
             </label>
             <input
               type="text"
-              placeholder="es. Arrivo verso le 17:00, porto una torta, ho 2 posti in auto..."
+              placeholder="es. Arriviamo insieme alle 13:00, portiamo un dolce..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               style={{
@@ -484,7 +485,7 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
           </div>
 
           {/* Submit */}
-          <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+          <div style={{ marginTop: '6px', display: 'flex', gap: '10px' }}>
             <button
               type="button"
               onClick={onClose}
@@ -523,7 +524,7 @@ export const EventRsvpModal: React.FC<EventRsvpModalProps> = ({
               }}
             >
               <Check size={18} />
-              {isSaving ? 'Salvataggio...' : 'Conferma Presenza'}
+              {isSaving ? 'Salvataggio...' : `Conferma ${selectedPersonIds.length > 0 ? `(${selectedPersonIds.length} person${selectedPersonIds.length === 1 ? 'a' : 'e'})` : ''}`}
             </button>
           </div>
         </form>

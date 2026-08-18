@@ -122,12 +122,18 @@ export async function deleteCustomEventFromCloud(eventId: string): Promise<Recor
 }
 
 export async function updateEventRsvpInCloud(eventId: string, rsvp: EventRsvp): Promise<Record<string, CustomEvent>> {
+  return await updateMultipleEventRsvpsInCloud(eventId, [rsvp]);
+}
+
+export async function updateMultipleEventRsvpsInCloud(eventId: string, rsvps: EventRsvp[]): Promise<Record<string, CustomEvent>> {
   const current = getLocalCustomEvents();
   if (current[eventId]) {
     if (!current[eventId].rsvps) {
       current[eventId].rsvps = {};
     }
-    current[eventId].rsvps[rsvp.personId] = rsvp;
+    rsvps.forEach((rsvp) => {
+      current[eventId].rsvps[rsvp.personId] = rsvp;
+    });
     return await saveCustomEventToCloud(current[eventId]);
   }
   return current;
