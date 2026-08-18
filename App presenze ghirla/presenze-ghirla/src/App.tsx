@@ -6,6 +6,17 @@ import { DayDetailModal } from './components/DayDetailModal';
 import { AddGuestModal } from './components/AddGuestModal';
 import { FunnyStatsModal } from './components/FunnyStatsModal';
 import { SpecialOccasionBanner } from './components/SpecialOccasionBanner';
+import { CustomEventBanner } from './components/CustomEventBanner';
+import { CreateSpecialEventModal } from './components/CreateSpecialEventModal';
+import { EventRsvpModal } from './components/EventRsvpModal';
+import type { CustomEvent, EventRsvp } from './data/customEventsData';
+import {
+  fetchCustomEventsFromCloud,
+  saveCustomEventToCloud,
+  deleteCustomEventFromCloud,
+  updateEventRsvpInCloud,
+  getLocalCustomEvents
+} from './utils/customEventsStorage';
 import {
   Plus,
   Users,
@@ -15,7 +26,8 @@ import {
   Home,
   Download,
   UserPlus,
-  BarChart3
+  BarChart3,
+  Sparkles
 } from 'lucide-react';
 
 import { 
@@ -32,6 +44,13 @@ export const App: React.FC = () => {
   const [presences, setPresences] = useState<Record<string, PresenceEntry>>(() => {
     return getLocalPresences();
   });
+
+  const [customEvents, setCustomEvents] = useState<Record<string, CustomEvent>>(() => {
+    return getLocalCustomEvents();
+  });
+  const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CustomEvent | null>(null);
+  const [rsvpEvent, setRsvpEvent] = useState<CustomEvent | null>(null);
 
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isAppInstalled, setIsAppInstalled] = useState<boolean>(() => {
@@ -188,6 +207,48 @@ export const App: React.FC = () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Sottoscrizione ed ascolto eventi speciali personalizzati (Realtime)
+  React.useEffect(() => {
+    const loadCustomEvents = async () => {
+      const data = await fetchCustomEventsFromCloud();
+      setCustomEvents(data);
+    };
+
+    loadCustomEvents();
+
+    const customChannel = supabase
+      .channel('custom-events-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'custom_events' },
+        () => {
+          loadCustomEvents();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(customChannel);
+    };
+  }, []);
+
+  const handleSaveCustomEvent = async (event: CustomEvent) => {
+    const updated = await saveCustomEventToCloud(event);
+    setCustomEvents(updated);
+    setEditingEvent(null);
+  };
+
+  const handleDeleteCustomEvent = async (eventId: string) => {
+    const updated = await deleteCustomEventFromCloud(eventId);
+    setCustomEvents(updated);
+  };
+
+  const handleSaveEventRsvp = async (eventId: string, rsvp: EventRsvp) => {
+    const updated = await updateEventRsvpInCloud(eventId, rsvp);
+    setCustomEvents(updated);
+    setRsvpEvent(null);
+  };
 
   const handleSavePresences = async (updated: Record<string, PresenceEntry>) => {
     setPresences(updated);
@@ -386,6 +447,32 @@ export const App: React.FC = () => {
             </button>
 
             <button
+              onClick={() => {
+                setEditingEvent(null);
+                setIsCreateEventOpen(true);
+              }}
+              title="Crea o proponi un evento speciale alla famiglia"
+              style={{
+                background: 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)',
+                color: '#ffffff',
+                border: 'none',
+                padding: '14px 20px',
+                borderRadius: '16px',
+                fontWeight: 800,
+                fontSize: '17px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 14px rgba(124, 58, 237, 0.4)',
+                cursor: 'pointer',
+                transition: 'transform 0.15s ease'
+              }}
+            >
+              <Sparkles size={22} />
+              🎪 Crea Evento Speciale
+            </button>
+
+            <button
               onClick={() => setIsFunnyStatsOpen(true)}
               title="Vedi le statistiche divertenti di Casa Ghirla"
               style={{
@@ -414,6 +501,16 @@ export const App: React.FC = () => {
 
       <main style={{ maxWidth: '1100px', margin: '24px auto', padding: '0 16px' }}>
         <SpecialOccasionBanner onOpenDateDetail={(dateStr) => setSelectedDayDetail(dateStr)} />
+
+        <CustomEventBanner
+          events={customEvents}
+          onOpenRsvp={(event) => setRsvpEvent(event)}
+          onEditEvent={(event) => {
+            setEditingEvent(event);
+            setIsCreateEventOpen(true);
+          }}
+          onDeleteEvent={handleDeleteCustomEvent}
+        />
 
         <section style={{ marginBottom: '36px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -779,6 +876,23 @@ export const App: React.FC = () => {
         isOpen={isFunnyStatsOpen}
         onClose={() => setIsFunnyStatsOpen(false)}
         presences={presences}
+      />
+
+      <CreateSpecialEventModal
+        isOpen={isCreateEventOpen}
+        onClose={() => {
+          setIsCreateEventOpen(false);
+          setEditingEvent(null);
+        }}
+        onSave={handleSaveCustomEvent}
+        initialEvent={editingEvent}
+      />
+
+      <EventRsvpModal
+        isOpen={!!rsvpEvent}
+        event={rsvpEvent}
+        onClose={() => setRsvpEvent(null)}
+        onSaveRsvp={handleSaveEventRsvp}
       />
 
     </div>

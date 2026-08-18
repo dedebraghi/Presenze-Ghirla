@@ -166,7 +166,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { dateStrs } = await req.json();
+    const payload = await req.json();
+    const { dateStrs, customEvent, customEventId, action } = payload;
     const serviceAccountKeyRaw = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_KEY');
     const calendarId = Deno.env.get('GOOGLE_CALENDAR_ID');
 
@@ -179,6 +180,125 @@ Deno.serve(async (req) => {
 
     const serviceAccount = JSON.parse(serviceAccountKeyRaw);
     const accessToken = await getGoogleAccessToken(serviceAccount);
+    const encodedCalendarId = encodeURIComponent(calendarId);
+
+    // Gestione Eventi Speciali Paralleli Personalizzati (customEvent)
+    if (customEvent || customEventId) {
+      const rawId = customEventId || (customEvent ? customEvent.id : '');
+      // Base32hex deterministico valido per ID Google Calendar (solo 0-9 e a-v)
+      const cleanCustomId = 'ghirlaevt' + rawId.replace(/[^a-v0-9]/gi, '').toLowerCase();
+
+      if (action === 'delete' || (customEvent && customEvent.isActive === false)) {
+        await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${cleanCustomId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }).catch(() => {});
+
+        return new Response(JSON.stringify({ success: true, deleted: cleanCustomId }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      if (customEvent) {
+        const creator = ALL_PEOPLE.find(p => p.id === customEvent.creatorId);
+        const creatorName = creator ? creator.name : customEvent.creatorId;
+
+        const isSingleDay = !customEvent.endDate || customEvent.startDate === customEvent.endDate;
+        const timeZone = 'Europe/Rome';
+
+        const rsvps = customEvent.rsvps || {};
+        const attendeesLines: string[] = [];
+        Object.values(rsvps).forEach((r: any) => {
+          const person = ALL_PEOPLE.find(p => p.id === r.personId);
+          const pName = person ? person.name : r.personId;
+          if (r.status === 'yes') {
+            attendeesLines.push(`✅ ${pName} (Tutto l'evento)${r.notes ? ' - ' + r.notes : ''}`);
+          } else if (r.status === 'partial') {
+            const slotNames = (r.selectedSlots || [])
+              .map((sid: string) => customEvent.slots?.find((s: any) => s.id === sid)?.label)
+              .filter(Boolean)
+              .join(', ');
+            attendeesLines.push(`✨ ${pName} (${slotNames || 'Momenti specifici'})${r.notes ? ' - ' + r.notes : ''}`);
+          } else if (r.status === 'no') {
+            attendeesLines.push(`❌ ${pName} (Non presente)${r.notes ? ' - ' + r.notes : ''}`);
+          }
+        });
+
+        const descriptionLines = [
+          `🎪 EVENTO SPECIALE: ${customEvent.title}`,
+          `👤 Proposto da: ${creatorName}`,
+          `📅 Data: ${customEvent.startDate}${!isSingleDay ? ' ➔ ' + customEvent.endDate : ''}`,
+          ...(customEvent.location ? [`📍 Luogo: ${customEvent.location}`] : []),
+          ...(customEvent.externalGuests ? ['', `👥 PERSONE ESTERNE PRESENTI: ${customEvent.externalGuests}`] : []),
+          ...(customEvent.description ? ['', `📝 Dettagli: ${customEvent.description}`] : []),
+          '',
+          `🎯 Momenti previsti: ${(customEvent.slots || []).map((s: any) => s.label).join(' | ')}`,
+          '',
+          `👥 PARTECIPAZIONE FAMIGLIA GHIRLA (${attendeesLines.filter(l => l.startsWith('✅') || l.startsWith('✨')).length} confermati):`,
+          attendeesLines.length > 0 ? attendeesLines.join('\n') : 'Nessuna risposta registrata finora.'
+        ];
+
+        const startObj = isSingleDay
+          ? { dateTime: `${customEvent.startDate}T10:00:00`, timeZone }
+          : { date: customEvent.startDate };
+
+        const endObj = isSingleDay
+          ? { dateTime: `${customEvent.startDate}T22:00:00`, timeZone }
+          : { date: customEvent.endDate };
+
+        const customEventBody = {
+          id: cleanCustomId,
+          summary: `🎪 ${customEvent.title} (Org: ${creatorName})`,
+          description: descriptionLines.join('\n'),
+          location: customEvent.location || 'Casa Ghirla, Valganna',
+          start: startObj,
+          end: endObj,
+          reminders: {
+            useDefault: false,
+            overrides: [
+              { method: 'popup', minutes: 0 }, // Notifica alle ore 10:00 / inizio
+              { method: 'popup', minutes: 120 } // Promemoria 2 ore prima
+            ]
+          }
+        };
+
+        const checkUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${cleanCustomId}`;
+        const checkRes = await fetch(checkUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (checkRes.ok) {
+          await fetch(checkUrl, {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(customEventBody),
+          });
+        } else {
+          await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(customEventBody),
+          });
+        }
+
+        return new Response(JSON.stringify({ success: true, customEventId: cleanCustomId }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Gestione normale presenze giornaliere Ghirla (dateStrs)
+    if (!dateStrs || (Array.isArray(dateStrs) && dateStrs.length === 0)) {
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -201,7 +321,6 @@ Deno.serve(async (req) => {
     }
 
     const targetDates: string[] = Array.isArray(dateStrs) ? dateStrs : [dateStrs];
-    const encodedCalendarId = encodeURIComponent(calendarId);
 
     for (const dateStr of targetDates) {
       if (!dateStr) continue;
