@@ -384,6 +384,10 @@ export const FunnyStatsModal: React.FC<FunnyStatsModalProps> = ({
     const totalActiveDays = Object.keys(dateStats).length;
     const grandTotalPresenceEvents = grandTotalLunch + grandTotalDinner + grandTotalOvernight;
     const overallAvgPresencesPerMoment = totalActiveDays > 0 ? (grandTotalPresenceEvents / (totalActiveDays * 3)).toFixed(1) : '0';
+    
+    // Media Pasti al Giorno (Totale Pranzi + Totale Cene diviso giorni attivi)
+    const grandTotalMeals = grandTotalLunch + grandTotalDinner;
+    const avgMealsPerDay = totalActiveDays > 0 ? (grandTotalMeals / totalActiveDays).toFixed(1) : '0';
 
     return {
       forkLeaderboard,
@@ -400,6 +404,8 @@ export const FunnyStatsModal: React.FC<FunnyStatsModalProps> = ({
       grandTotalLunch,
       grandTotalDinner,
       grandTotalOvernight,
+      grandTotalMeals,
+      avgMealsPerDay,
       overallAvgPresencesPerMoment,
       dayOfWeekAvg
     };
@@ -924,7 +930,7 @@ export const FunnyStatsModal: React.FC<FunnyStatsModalProps> = ({
             </div>
           </div>
 
-          {/* SEZIONE 3: ISTOGRAMMA MEDIA PRESENZE SETTIMANALI CON SPIEGAZIONE */}
+          {/* SEZIONE 3: ISTOGRAMMA & MEDIE CON SPIEGAZIONI */}
           <div style={{
             backgroundColor: '#ffffff',
             border: '1px solid #e2e8f0',
@@ -932,26 +938,78 @@ export const FunnyStatsModal: React.FC<FunnyStatsModalProps> = ({
             padding: '20px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '14px',
+            gap: '16px',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
           }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Calendar size={18} color="#4f46e5" />
-                  <span>Affluenza Media nei Giorni della Settimana</span>
+            {/* Header Istogramma con Targhette in evidenza */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Calendar size={20} color="#4f46e5" />
+                <span>Affluenza nei Giorni della Settimana</span>
+              </div>
+
+              {/* Targhette in evidenza */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{
+                  backgroundColor: '#fdf2f8',
+                  border: '1px solid #fbcfe8',
+                  color: '#831843',
+                  padding: '6px 12px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>🍽️ Media Pasti/Giorno:</span>
+                  <strong style={{ color: '#db2777', fontSize: '14px', fontWeight: 800 }}>{stats.avgMealsPerDay}</strong>
                 </div>
-                <div style={{ fontSize: '12px', color: '#475569', fontWeight: 600, backgroundColor: '#ede9fe', padding: '4px 10px', borderRadius: '10px' }}>
-                  Media momento: <span style={{ color: '#4f46e5', fontWeight: 800 }}>{stats.overallAvgPresencesPerMoment}</span> pers.
+
+                <div style={{
+                  backgroundColor: '#ede9fe',
+                  border: '1px solid #ddd6fe',
+                  color: '#4c1d95',
+                  padding: '6px 12px',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>👥 Presenze per Momento:</span>
+                  <strong style={{ color: '#6d28d9', fontSize: '14px', fontWeight: 800 }}>{stats.overallAvgPresencesPerMoment}</strong>
                 </div>
               </div>
-              {/* Spiegazione Istogramma */}
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px', lineHeight: '1.4', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-                <Info size={15} style={{ flexShrink: 0, marginTop: '2px', color: '#6366f1' }} />
-                <span>
-                  Indica la <strong>media presenze</strong> tra pranzo, cena e notte per ogni giorno della settimana (calcolata come <em>(pranzo + cena + notte) / 3</em> per ciascun giorno, mediata poi su tutte le settimane del periodo).
+            </div>
+
+            {/* Spiegazione Formule e Calcoli */}
+            <div style={{
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '14px',
+              padding: '12px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              fontSize: '12px',
+              color: '#64748b'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                <Info size={16} style={{ flexShrink: 0, marginTop: '1px', color: '#6366f1' }} />
+                <span style={{ color: '#334155', fontWeight: 700 }}>
+                  Come sono calcolati i dati:
                 </span>
               </div>
+              <ul style={{ margin: '0 0 0 20px', padding: 0, lineHeight: '1.4', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <li>
+                  <strong>Media Pasti / Giorno ({stats.avgMealsPerDay}):</strong> somma complessiva di tutti i pranzi e cene consumati diviso il numero di giorni attivi del periodo ({stats.totalActiveDays} giorni).
+                </li>
+                <li>
+                  <strong>Barre Istogramma (Media presenze per giorno):</strong> media delle presenze tra pranzo, cena e notte per ciascun giorno della settimana (calcolata come <em>(pranzo + cena + notte) / 3</em> su ogni data, mediata poi su tutte le settimane del periodo).
+                </li>
+              </ul>
             </div>
 
             {/* Barre Istogramma */}
