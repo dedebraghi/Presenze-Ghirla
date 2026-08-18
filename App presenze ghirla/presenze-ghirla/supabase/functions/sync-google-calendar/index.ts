@@ -94,6 +94,72 @@ const ALL_PEOPLE = [
   { id: 'mario', name: 'Mario' },
 ];
 
+// Ricorrenze annuali (Compleanni, Onomastici, Anniversari)
+const SPECIAL_OCCASIONS = [
+  // GENNAIO
+  { date: '01-08', type: 'birthday', title: '🎂 Compleanno Stefano' },
+  { date: '01-19', type: 'birthday', title: '🎂 Compleanno Luigi' },
+  { date: '01-19', type: 'nameday', title: '😇 Onomastico Mario' },
+  { date: '01-20', type: 'birthday', title: '🎂 Compleanno Monicotti' },
+  { date: '01-31', type: 'birthday', title: '🎂 Compleanno Caterina' },
+
+  // FEBBRAIO
+  { date: '02-16', type: 'birthday', title: '🎂 Compleanno Maria R.' },
+  { date: '02-22', type: 'anniversary', title: '💍 Anniversario Maria R. & Pietro' },
+
+  // MARZO
+  { date: '03-01', type: 'birthday', title: '🎂 Compleanno Davide' },
+  { date: '03-19', type: 'nameday', title: '😇 Onomastico Peppo' },
+  { date: '03-28', type: 'birthday', title: '🎂 Compleanno Isa' },
+
+  // APRILE
+  { date: '04-03', type: 'birthday', title: '🎂 Compleanno Peppo' },
+  { date: '04-29', type: 'nameday', title: '😇 Onomastico Caterina' },
+
+  // MAGGIO
+  { date: '05-12', type: 'birthday', title: '🎂 Compleanno Mario' },
+  { date: '05-18', type: 'birthday', title: '🎂 Compleanno Giacomo' },
+
+  // GIUGNO
+  { date: '06-04', type: 'nameday', title: '😇 Onomastico Isa' },
+  { date: '06-11', type: 'birthday', title: '🎂 Compleanno Elisabetta' },
+  { date: '06-21', type: 'nameday', title: '😇 Onomastico Luigi' },
+  { date: '06-22', type: 'anniversary', title: '💍 Anniversario Giacomo & Maria O.' },
+  { date: '06-29', type: 'nameday', title: '😇 Onomastico Pietro' },
+
+  // LUGLIO
+  { date: '07-09', type: 'birthday', title: '🎂 Compleanno Luca' },
+  { date: '07-20', type: 'nameday', title: '😇 Onomastico Marghe' },
+  { date: '07-25', type: 'nameday', title: '😇 Onomastico Giacomo' },
+
+  // AGOSTO
+  { date: '08-06', type: 'birthday', title: '🎂 Compleanno Pietro' },
+  { date: '08-12', type: 'birthday', title: '🎂 Compleanno Maria O.' },
+  { date: '08-18', type: 'nameday', title: '😇 Onomastico Elena' },
+  { date: '08-27', type: 'nameday', title: '😇 Onomastico Monicotti' },
+
+  // SETTEMBRE
+  { date: '09-06', type: 'birthday', title: '🎂 Compleanno Marghe' },
+  { date: '09-06', type: 'anniversary', title: '💍 Anniversario Cecilia & Davide' },
+  { date: '09-12', type: 'birthday', title: '🎂 Compleanno Elena' },
+  { date: '09-12', type: 'nameday', title: '😇 Onomastico Maria' },
+  { date: '09-29', type: 'nameday', title: '😇 Onomastico Michi' },
+
+  // OTTOBRE
+  { date: '10-18', type: 'nameday', title: '😇 Onomastico Luca' },
+  { date: '10-19', type: 'anniversary', title: '💍 Anniversario Elena & Stefano' },
+
+  // NOVEMBRE
+  { date: '11-01', type: 'nameday', title: '😇 Onomastico Fiammi' },
+  { date: '11-17', type: 'nameday', title: '😇 Onomastico Elisabetta' },
+  { date: '11-22', type: 'birthday', title: '🎂 Compleanno Cecilia' },
+  { date: '11-22', type: 'nameday', title: '😇 Onomastico Cecilia' },
+
+  // DICEMBRE
+  { date: '12-26', type: 'nameday', title: '😇 Onomastico Stefano' },
+  { date: '12-29', type: 'nameday', title: '😇 Onomastico Davide' },
+];
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -190,7 +256,7 @@ Deno.serve(async (req) => {
       const eventId = `ghirla${cleanDate}`;
 
       // 1. Cerca ed elimina qualsiasi vecchio evento duplicato presente per quel giorno
-      const listUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events?q=${encodeURIComponent('Presenze Ghirla')}&timeMin=${dateStr}T00:00:00Z&timeMax=${dateStr}T23:59:59Z`;
+      const listUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events?timeMin=${dateStr}T00:00:00Z&timeMax=${dateStr}T23:59:59Z`;
       const searchRes = await fetch(listUrl, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
@@ -199,12 +265,14 @@ Deno.serve(async (req) => {
         const searchData = await searchRes.json();
         if (searchData.items && searchData.items.length > 0) {
           for (const item of searchData.items) {
-            // Elimina vecchi eventi che NON hanno l'ID deterministico unico oppure se siamo a 0 presenze elimina tutti
+            // Elimina vecchi eventi che non corrispondono all'ID deterministico unico o se presenze = 0
             if (totalPresencesCount === 0 || item.id !== eventId) {
-              await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${item.id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${accessToken}` },
-              }).catch(() => {});
+              if (item.id.startsWith('ghirla') || (item.summary && (item.summary.includes('Ghirla') || item.summary.includes('Onomastico') || item.summary.includes('Compleanno') || item.summary.includes('Anniversario')))) {
+                await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodedCalendarId}/events/${item.id}`, {
+                  method: 'DELETE',
+                  headers: { Authorization: `Bearer ${accessToken}` },
+                }).catch(() => {});
+              }
             }
           }
         }
@@ -214,9 +282,19 @@ Deno.serve(async (req) => {
         const parts = dateStr.split('-');
         const formattedDate = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateStr;
 
-        const eventSummary = `Presenze Ghirla: 🍝 ${lunchPeople.length} | 🍷 ${dinnerPeople.length} | 🛏️ ${overnightPeople.length}`;
+        // Verifica se ci sono ricorrenze speciali (Compleanni, Onomastici, Anniversari) per questa data
+        const mmdd = dateStr.slice(5, 10);
+        const occasions = SPECIAL_OCCASIONS.filter(o => o.date === mmdd);
+
+        let eventPrefix = 'Presenze Ghirla';
+        if (occasions.length > 0) {
+          eventPrefix = occasions.map(o => o.title).join(' & ');
+        }
+
+        const eventSummary = `${eventPrefix}: 🍝 ${lunchPeople.length} | 🍷 ${dinnerPeople.length} | 🛏️ ${overnightPeople.length}`;
         const descriptionLines = [
           `🏠 RIEPILOGO PRESENZE GHIRLA - ${formattedDate}`,
+          ...(occasions.length > 0 ? ['', `🎉 RICORRENZE OGGI: ${occasions.map(o => o.title).join(' | ')}`] : []),
           '',
           `🍝 PRANZO (${lunchPeople.length}): ${lunchPeople.length > 0 ? lunchPeople.join(', ') : 'Nessuno'}`,
           `🍷 CENA (${dinnerPeople.length}): ${dinnerPeople.length > 0 ? dinnerPeople.join(', ') : 'Nessuno'}`,
