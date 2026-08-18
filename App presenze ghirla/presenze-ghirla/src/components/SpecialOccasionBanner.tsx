@@ -151,7 +151,7 @@ export const SpecialOccasionBanner: React.FC<SpecialOccasionBannerProps> = ({ on
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginTop: '4px' }}>
           <div style={{ fontSize: '14px', color: '#92400e', fontWeight: 700 }}>
-            Da tutta la famiglia! 🥂
+            Tanti auguri da tutta la famiglia! 🥂
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
