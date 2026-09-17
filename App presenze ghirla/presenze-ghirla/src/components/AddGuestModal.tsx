@@ -9,7 +9,7 @@ interface AddGuestModalProps {
   isOpen: boolean;
   onClose: () => void;
   presences: Record<string, PresenceEntry>;
-  onSavePresences: (updated: Record<string, PresenceEntry>, newGuest?: Person) => void;
+  onSavePresences: (updated: Record<string, PresenceEntry>, newGuest?: Person, changedDates?: string[]) => void;
 }
 
 export const AddGuestModal: React.FC<AddGuestModalProps> = ({
@@ -18,8 +18,6 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
   presences,
   onSavePresences,
 }) => {
-  if (!isOpen) return null;
-
   const todayStr = getLocalDateString();
   const [guestName, setGuestName] = useState('');
   const [invitedByFamilyId, setInvitedByFamilyId] = useState('stefano-elena');
@@ -36,6 +34,8 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
   const [showMultiGuestModal, setShowMultiGuestModal] = useState(false);
   const [detectedNames, setDetectedNames] = useState<string[]>([]);
   const [pendingSaveNames, setPendingSaveNames] = useState<string[] | null>(null);
+
+  if (!isOpen) return null;
 
   const parseGuestNames = (input: string): string[] => {
     return input
@@ -174,6 +174,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
     const start = new Date(startDate);
     const end = new Date(endDate);
     let lastGuestCreated: Person | undefined = undefined;
+    const affectedDates: string[] = [];
 
     names.forEach((name, idx) => {
       const cleanSlug = name.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -190,6 +191,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
 
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const dateStr = getLocalDateString(d);
+        if (!affectedDates.includes(dateStr)) affectedDates.push(dateStr);
         const key = `${dateStr}_${guestId}`;
         updated[key] = {
           date: dateStr,
@@ -201,7 +203,7 @@ export const AddGuestModal: React.FC<AddGuestModalProps> = ({
       }
     });
 
-    onSavePresences(updated, lastGuestCreated);
+    onSavePresences(updated, lastGuestCreated, affectedDates);
 
     try {
       confetti({

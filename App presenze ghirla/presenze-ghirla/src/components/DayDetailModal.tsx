@@ -8,7 +8,7 @@ interface DayDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   presences: Record<string, PresenceEntry>;
-  onSavePresences: (updated: Record<string, PresenceEntry>) => void;
+  onSavePresences: (updated: Record<string, PresenceEntry>, changedDates?: string[]) => void;
   onDeleteGuest?: (personId: string) => void;
 }
 
@@ -144,7 +144,7 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
       }
     };
 
-    onSavePresences(updated);
+    onSavePresences(updated, [dateStr]);
   };
 
   return (

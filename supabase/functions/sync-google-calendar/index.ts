@@ -320,7 +320,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    const targetDates: string[] = Array.isArray(dateStrs) ? dateStrs : [dateStrs];
+    const rawTargetDates: string[] = Array.isArray(dateStrs) ? dateStrs : [dateStrs];
+    const targetDates: string[] = Array.from(new Set(rawTargetDates.filter(Boolean)));
 
     for (const dateStr of targetDates) {
       if (!dateStr) continue;

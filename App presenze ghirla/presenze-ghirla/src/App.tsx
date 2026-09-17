@@ -250,24 +250,65 @@ export const App: React.FC = () => {
     setRsvpEvent(null);
   };
 
-  const handleSavePresences = async (updated: Record<string, PresenceEntry>) => {
-    setPresences(updated);
-    await batchSavePresenceEntriesToCloud(updated);
+  const handleSavePresences = async (updated: Record<string, PresenceEntry>, explicitChangedDates?: string[]) => {
+    // Individua le sole chiavi che sono cambiate rispetto allo stato precedente
+    const allKeys = Array.from(new Set([...Object.keys(presences), ...Object.keys(updated)]));
+    const changedKeys = allKeys.filter(k => {
+      const prev = presences[k];
+      const next = updated[k];
+      if (!prev && !next) return false;
+      if (!prev || !next) return true;
+      return (
+        prev.lunch !== next.lunch ||
+        prev.dinner !== next.dinner ||
+        prev.overnight !== next.overnight
+      );
+    });
 
-    // Sincronizzazione automatica permanente su Google Calendar tramite Supabase Edge Function
-    const affectedDates = Array.from(new Set(Object.values(updated).map(entry => entry.date)));
-    if (affectedDates.length > 0) {
+    const diffDates: string[] = explicitChangedDates && explicitChangedDates.length > 0
+      ? explicitChangedDates
+      : Array.from(
+          new Set(
+            changedKeys
+              .map(k => updated[k]?.date || presences[k]?.date)
+              .filter(Boolean) as string[]
+          )
+        );
+
+    // Aggiorna lo stato locale completo per la reattività della UI
+    setPresences(updated);
+
+    // Salva nel cloud e batch solo i record effettivamente modificati
+    const entriesToSave: Record<string, PresenceEntry> = {};
+    if (changedKeys.length > 0) {
+      changedKeys.forEach(k => {
+        if (updated[k]) entriesToSave[k] = updated[k];
+      });
+      await batchSavePresenceEntriesToCloud(entriesToSave);
+    }
+
+    // Sincronizzazione automatica permanente su Google Calendar tramite Supabase Edge Function:
+    // invia ESCLUSIVAMENTE le date modificate per evitare timeout
+    if (diffDates.length > 0) {
       supabase.functions.invoke('sync-google-calendar', {
-        body: { dateStrs: affectedDates }
+        body: { dateStrs: diffDates }
       }).catch(err => console.error('Errore invocazione sync-google-calendar:', err));
     }
   };
 
   const handleDeleteGuestInCloud = async (personId: string) => {
+    // Raccoglie solo le date in cui l'ospite eliminato risultava presente
+    const affectedDates = Array.from(
+      new Set(
+        Object.values(presences)
+          .filter(entry => entry.personId === personId && (entry.lunch || entry.dinner || entry.overnight))
+          .map(entry => entry.date)
+      )
+    );
+
     const updated = await deletePersonPresencesFromCloud(personId);
     setPresences(updated);
 
-    const affectedDates = Array.from(new Set(Object.values(updated).map(entry => entry.date)));
     if (affectedDates.length > 0) {
       supabase.functions.invoke('sync-google-calendar', {
         body: { dateStrs: affectedDates }
@@ -280,8 +321,12 @@ export const App: React.FC = () => {
   const [isFunnyStatsOpen, setIsFunnyStatsOpen] = useState(false);
   const [selectedDayDetail, setSelectedDayDetail] = useState<string | null>(null);
 
-  const handleSavePresencesWithGuest = async (updated: Record<string, PresenceEntry>, _newGuest?: Person) => {
-    await handleSavePresences(updated);
+  const handleSavePresencesWithGuest = async (
+    updated: Record<string, PresenceEntry>,
+    _newGuest?: Person,
+    explicitChangedDates?: string[]
+  ) => {
+    await handleSavePresences(updated, explicitChangedDates);
   };
 
   const [activeFamilyFilter, setActiveFamilyFilter] = useState<string | null>(null);

@@ -9,7 +9,7 @@ interface QuickAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   presences: Record<string, PresenceEntry>;
-  onSavePresences: (updated: Record<string, PresenceEntry>) => void;
+  onSavePresences: (updated: Record<string, PresenceEntry>, changedDates?: string[]) => void;
 }
 
 export const QuickAddModal: React.FC<QuickAddModalProps> = ({
@@ -18,8 +18,6 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
   presences,
   onSavePresences,
 }) => {
-  if (!isOpen) return null;
-
   const todayStr = getLocalDateString();
   const [startDate, setStartDate] = useState(todayStr);
   const [endDate, setEndDate] = useState(todayStr);
@@ -29,6 +27,8 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
   const [lunch, setLunch] = useState(true);
   const [dinner, setDinner] = useState(true);
   const [overnight, setOvernight] = useState(true);
+
+  if (!isOpen) return null;
 
   const togglePerson = (id: string) => {
     setSelectedPersonIds(prev =>
@@ -55,8 +55,10 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     const start = new Date(startDate);
     const end = new Date(endDate);
 
+    const affectedDates: string[] = [];
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dateStr = getLocalDateString(d);
+      affectedDates.push(dateStr);
       
       selectedPersonIds.forEach(pId => {
         const key = `${dateStr}_${pId}`;
@@ -70,7 +72,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
       });
     }
 
-    onSavePresences(updated);
+    onSavePresences(updated, affectedDates);
     
     try {
       confetti({
